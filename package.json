@@ -1,0 +1,26 @@
+{
+  "name": "commercelayer-slackbot",
+  "version": "1.0.0",
+  "description": "A Slackbot that alerts a Commerce Layer organization for new orders/returns.",
+  "main": "app.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BolajiAyodeji/cl-slackbot.git"
+  },
+  "keywords": [
+    "commercelayer",
+    "slack",
+    "slackbot",
+    "typescript",
+    "nodejs"
+  ],
+  "author": "Bolaji Ayodeji <bolaji@commercelayer.io>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/BolajiAyodeji/cl-slackbot/issues"
+  },
+  "homepage": "https://github.com/BolajiAyodeji/cl-slackbot#readme"
+}
