@@ -1,10 +1,13 @@
 {
   "name": "commercelayer-slackbot",
   "version": "1.0.0",
-  "description": "A Slackbot that alerts a Commerce Layer organization for new orders/returns.",
+  "description": "A slackbot that alerts a Commerce Layer organization for new orders/returns.",
   "main": "app.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "build/app.js",
+    "build": "npx tsc -w",
+    "test": "",
+    "prettier": "prettier --config .prettierrc --write ."
   },
   "repository": {
     "type": "git",
@@ -22,5 +25,11 @@
   "bugs": {
     "url": "https://github.com/BolajiAyodeji/cl-slackbot/issues"
   },
-  "homepage": "https://github.com/BolajiAyodeji/cl-slackbot#readme"
+  "homepage": "https://github.com/BolajiAyodeji/cl-slackbot#readme",
+  "devDependencies": {
+    "typescript": "^4.9.5"
+  },
+  "dependencies": {
+    "@slack/bolt": "^3.12.2"
+  }
 }
