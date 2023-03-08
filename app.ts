@@ -11,11 +11,16 @@ const app = new App({
   signingSecret: process.env.SLACK_SIGNING_SECRET
 });
 
+// Acknowledge and respond to all requests to the /cl slash command.
 app.command("/cl", async ({ command, client, ack, say }) => {
   await ack();
 
   getOrderByID(command, client, say);
 });
+
+// Respond with 200 OK to Slack API since all buttons dispatch a request.
+app.action("view_order", ({ ack }) => ack());
+app.action("view_customer", ({ ack }) => ack());
 
 const getOrderByID = async (userInput, client, say) => {
   if (userInput.text.startsWith("order")) {
@@ -109,7 +114,10 @@ const getOrderByID = async (userInput, client, say) => {
                     text: "View Order",
                     emoji: true
                   },
-                  value: "view_order"
+                  style: "primary",
+                  value: "view_order",
+                  url: `https://${process.env.CL_ORGANIZATION_SLUG}.commercelayer.io/admin/orders/${order.id}/edit`,
+                  action_id: "view_order"
                 },
                 {
                   type: "button",
@@ -118,7 +126,9 @@ const getOrderByID = async (userInput, client, say) => {
                     text: "View Customer",
                     emoji: true
                   },
-                  value: "view_customer"
+                  value: "view_customer",
+                  url: `https://${process.env.CL_ORGANIZATION_SLUG}.commercelayer.io/admin/customers/${order.customer.id}/edit`,
+                  action_id: "view_customer"
                 }
               ]
             },
