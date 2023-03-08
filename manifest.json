@@ -1,0 +1,54 @@
+{
+    "_metadata": {
+      "major_version": 1,
+      "minor_version": 1
+    },
+    "display_information": {
+      "name": "TBA",
+      "long_description": "TBA",
+      "description": "TBA",
+      "background_color": "TBA"
+    },
+    "settings": {
+      "socket_mode_enabled": false,
+      "interactivity": {
+        "is_enabled": true,
+        "request_url": "TBA"
+      },
+      "event_subscriptions": {
+        "bot_events": [
+          "app_home_opened"
+        ]
+      }
+    },
+    "features": {
+      "app_home": {
+        "home_tab_enabled": true,
+        "messages_tab_enabled": true,
+        "messages_tab_read_only_enabled": false
+      },
+      "bot_user": {
+        "display_name": "TBA"
+      },
+      "slash_commands": [
+        {
+          "command": "TBA",
+          "description": "TBA",
+          "usage_hint": "TBA",
+          "url": "TBA"
+        }
+      ]
+    },
+    "oauth_config": {
+      "scopes": {
+        "bot": [
+          "commands",
+          "chat:write",
+          "chat:write.public"
+        ]
+      },
+      "redirect_urls": [
+        "TBA"
+      ]
+    }
+  }

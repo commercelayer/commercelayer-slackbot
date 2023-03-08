@@ -1,8 +1,11 @@
+import * as dotenv from "dotenv";
+dotenv.config();
+
 import { getIntegrationToken } from "@commercelayer/js-auth";
 
-const BASE_ENDPOINT = process.env.COMMERCE_LAYER_BASE_ENDPOINT;
-const CLIENT_ID = process.env.COMMERCE_LAYER_CLIENT_ID;
-const CLIENT_SECRET = process.env.COMMERCE_LAYER_CLIENT_SECRET;
+const BASE_ENDPOINT = `https://${process.env.CL_ORGANIZATION_SLUG}.commercelayer.io`;
+const CLIENT_ID = process.env.CL_CLIENT_ID;
+const CLIENT_SECRET = process.env.CL_CLIENT_SECRET;
 
 const getToken = async () => {
   const auth = await getIntegrationToken({
@@ -13,4 +16,4 @@ const getToken = async () => {
   return auth.accessToken;
 };
 
-export default getToken();
+export default getToken;
