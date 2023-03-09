@@ -9,14 +9,20 @@ const cl = CommerceLayer({
   accessToken: token
 });
 
-const getOrder = async (orderID) => {
-  return await cl.orders.retrieve(orderID, {
+const getOrderById = async (id: string) => {
+  return await cl.orders.retrieve(id, {
     include: ["customer", "market", "shipments", "shipping_address", "billing_address", "payment_method"]
   });
 };
 
-const getLastOrder = async () => {
-  return (await cl.orders.list({})).last();
+const getLastOrder = async (status: string) => {
+  const orders = await cl.orders.list({
+    include: ["customer", "market", "shipments", "shipping_address", "billing_address", "payment_method"],
+    filters: { status_eq: `${status}` },
+    sort: status === "placed" ? { placed_at: "desc" } : { approved_at: "desc" }
+  });
+
+  return orders.first();
 };
 
 // fetch current total orders (count and revenue) for the current day
@@ -29,4 +35,4 @@ const getLastOrder = async () => {
 
 // fetch current total orders (count and revenue) all time
 
-export { getOrder, getLastOrder };
+export { getOrderById, getLastOrder };
