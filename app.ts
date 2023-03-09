@@ -3,6 +3,7 @@ dotenv.config();
 
 import slackPkg from "@slack/bolt";
 import { getOrderById, getLastOrder } from "./src/orders/getOrders.js";
+import { getReturnById, getLastReturn } from "./src/returns/getReturns.js";
 import { formatDate } from "./src/utils/formatDate.js";
 
 const { App } = slackPkg;
@@ -27,9 +28,22 @@ app.command("/cl", async ({ command, client, ack, say }) => {
     getOrderResource(resourceType, command, client, say);
   }
 
+  if (command.text.startsWith("return ")) {
+    const resourceType = getReturnById(command.text.replace("return ", ""));
+    getReturnResource(resourceType, command, client, say);
+  }
+  if (command.text === "return:r last" || command.text === "return:last") {
+    const resourceType = getLastReturn("requested");
+    getReturnResource(resourceType, command, client, say);
+  } else if (command.text === "return:a last") {
+    const resourceType = getLastReturn("approved");
+    getReturnResource(resourceType, command, client, say);
+  }
+
   // Respond with 200 OK since all Slack buttons dispatch a request.
-  app.action("view_order", ({ ack }) => ack());
   app.action("view_customer", ({ ack }) => ack());
+  app.action("view_order", ({ ack }) => ack());
+  app.action("view_return", ({ ack }) => ack());
 });
 
 const getOrderResource = async (resourceType, userInput, client, say) => {
@@ -37,20 +51,20 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
     user: userInput.user_id
   });
   await resourceType
-    .then(async (order) => {
+    .then(async (resource) => {
       await say({
         blocks: [
           {
             type: "section",
             text: {
               type: "mrkdwn",
-              text: `:shopping_trolley: Order ${"`"}${order.id}${"`"} from the *${
-                order.market.name
-              }* market has a total amount of *${order.formatted_subtotal_amount}* and was ${
-                order.placed_at !== null ? "placed" : "created"
+              text: `:shopping_trolley: Order ${"`"}${resource.id}${"`"} from the *${
+                resource.market.name
+              }* market has a total amount of *${resource.formatted_subtotal_amount}* and was ${
+                resource.placed_at !== null ? "placed" : "created"
               } on *${formatDate(
-                order.placed_at !== null ? order.placed_at : order.created_at
-              )}*. Here's a quick summary of the order:`
+                resource.placed_at !== null ? resource.placed_at : resource.created_at
+              )}*. Here's a quick summary of the resource:`
             }
           },
           {
@@ -61,13 +75,13 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
             fields: [
               {
                 type: "mrkdwn",
-                text: `*Customer email:*\n${order.customer !== null ? order.customer.email : "null"}`
+                text: `*Customer email:*\n${resource.customer !== null ? resource.customer.email : "null"}`
               },
               {
                 type: "mrkdwn",
                 text: `*Customer ID:*\n<https://${process.env.CL_ORGANIZATION_SLUG}.commercelayer.io/admin/customers/${
-                  order.customer !== null ? order.customer.id : "null"
-                }/edit|${order.customer !== null ? order.customer.id : "null"}>`
+                  resource.customer !== null ? resource.customer.id : "null"
+                }/edit|${resource.customer !== null ? resource.customer.id : "null"}>`
               }
             ]
           },
@@ -76,11 +90,11 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
             fields: [
               {
                 type: "mrkdwn",
-                text: `*Order number:*\n${"`"}${order.number}${"`"}`
+                text: `*resource number:*\n${"`"}${resource.number}${"`"}`
               },
               {
                 type: "mrkdwn",
-                text: `*Order status:*\n${"`"}${order.status}${"`"}`
+                text: `*resource status:*\n${"`"}${resource.status}${"`"}`
               }
             ]
           },
@@ -90,16 +104,16 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
               {
                 type: "mrkdwn",
                 text: `*Shipping address:*\n${
-                  order.shipping_address !== null
-                    ? order.shipping_address.full_name + ", " + order.shipping_address.full_address
+                  resource.shipping_address !== null
+                    ? resource.shipping_address.full_name + ", " + resource.shipping_address.full_address
                     : "null"
                 }.`
               },
               {
                 type: "mrkdwn",
                 text: `*Billing address:*\n${
-                  order.billing_address !== null
-                    ? order.billing_address.full_name + ", " + order.billing_address.full_address
+                  resource.billing_address !== null
+                    ? resource.billing_address.full_name + ", " + resource.billing_address.full_address
                     : "null"
                 }.`
               }
@@ -110,15 +124,15 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
             fields: [
               {
                 type: "mrkdwn",
-                text: `*Payment method:*\n${order.payment_method !== null ? order.payment_method.name : "null"}`
+                text: `*Payment method:*\n${resource.payment_method !== null ? resource.payment_method.name : "null"}`
               },
               {
                 type: "mrkdwn",
                 text: `*Shipment number(s):*\n${
-                  order.shipments.length > 0
-                    ? order.shipments.map((shipment) => {
+                  resource.shipments.length > 0
+                    ? resource.shipments.map((shipment) => {
                         // todo: remove , from last element in the array
-                        if (order.shipments.length > 1) {
+                        if (resource.shipments.length > 1) {
                           return `<https://${process.env.CL_ORGANIZATION_SLUG}.commercelayer.io/admin/shipments/${shipment.id}/edit|${shipment.number}>, `;
                         } else {
                           return `<https://${process.env.CL_ORGANIZATION_SLUG}.commercelayer.io/admin/shipments/${shipment.id}/edit|${shipment.number}>`;
@@ -141,7 +155,7 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
                 },
                 style: "primary",
                 value: "view_order",
-                url: `https://${process.env.CL_ORGANIZATION_SLUG}.commercelayer.io/admin/orders/${order.id}/edit`,
+                url: `https://${process.env.CL_ORGANIZATION_SLUG}.commercelayer.io/admin/orders/${resource.id}/edit`,
                 action_id: "view_order"
               },
               {
@@ -153,7 +167,7 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
                 },
                 value: "view_customer",
                 url: `https://${process.env.CL_ORGANIZATION_SLUG}.commercelayer.io/admin/customers/${
-                  order.customer !== null ? order.customer.id : "null"
+                  resource.customer !== null ? resource.customer.id : "null"
                 }/edit`,
                 action_id: "view_customer"
               }
@@ -179,11 +193,157 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
             ]
           }
         ],
-        text: `:shopping_trolley: Order ${"`"}${order.id}${"`"} from the *${
-          order.market.name
-        }* market has a total amount of *${order.formatted_subtotal_amount}* and was placed on *${formatDate(
-          order.placed_at !== null ? order.placed_at : order.created_at
+        text: `:shopping_trolley: resource ${"`"}${resource.id}${"`"} from the *${
+          resource.market.name
+        }* market has a total amount of *${resource.formatted_subtotal_amount}* and was placed on *${formatDate(
+          resource.placed_at !== null ? resource.placed_at : resource.created_at
         )}*.`
+      });
+    })
+    .catch(async (error) => {
+      await say({
+        blocks: [
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: `> :warning: Command ${"`"}${userInput.command} ${
+                userInput.text
+              }${"`"} failed with error: ${"```"}${JSON.stringify(error, null, 2)}${"```"}`
+            }
+          }
+        ],
+        text: error
+      });
+    });
+};
+
+const getReturnResource = async (resourceType, userInput, client, say) => {
+  const triggerUser = await client.users.info({
+    user: userInput.user_id
+  });
+  await resourceType
+    .then(async (resource) => {
+      await say({
+        blocks: [
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: `:shopping_trolley: Return ${"`"}${resource.id}${"`"} from the *${
+                resource.order.country_code
+              }* market includes *${resource.skus_count}* line items, is to be shipped to the *${
+                resource.stock_location.name
+              }*, and was created on *${formatDate(resource.created_at)}*. Here's a quick summary of the resource:`
+            }
+          },
+          {
+            type: "divider"
+          },
+          {
+            type: "section",
+            fields: [
+              {
+                type: "mrkdwn",
+                text: `*Customer email:*\n${resource.customer !== null ? resource.customer.email : "null"}`
+              },
+              {
+                type: "mrkdwn",
+                text: `*Customer ID:*\n<https://${process.env.CL_ORGANIZATION_SLUG}.commercelayer.io/admin/customers/${
+                  resource.customer !== null ? resource.customer.id : "null"
+                }/edit|${resource.customer !== null ? resource.customer.id : "null"}>`
+              }
+            ]
+          },
+          {
+            type: "section",
+            fields: [
+              {
+                type: "mrkdwn",
+                text: `*Return number:*\n${"`"}${resource.number}${"`"}`
+              },
+              {
+                type: "mrkdwn",
+                text: `*Return status:*\n${"`"}${resource.status}${"`"}`
+              }
+            ]
+          },
+          {
+            type: "section",
+            fields: [
+              {
+                type: "mrkdwn",
+                text: `*Origin address:*\n${
+                  resource.origin_address !== null
+                    ? resource.origin_address.full_name + ", " + resource.origin_address.full_address
+                    : "null"
+                }.`
+              },
+              {
+                type: "mrkdwn",
+                text: `*Destination address:*\n${
+                  resource.destination_address !== null
+                    ? resource.destination_address.full_name + ", " + resource.destination_address.full_address
+                    : "null"
+                }.`
+              }
+            ]
+          },
+          {
+            type: "actions",
+            elements: [
+              {
+                type: "button",
+                text: {
+                  type: "plain_text",
+                  text: "View Return",
+                  emoji: true
+                },
+                style: "primary",
+                value: "view_return",
+                url: `https://${process.env.CL_ORGANIZATION_SLUG}.commercelayer.io/admin/returns/${resource.id}/edit`,
+                action_id: "view_return"
+              },
+              {
+                type: "button",
+                text: {
+                  type: "plain_text",
+                  text: "View Customer",
+                  emoji: true
+                },
+                value: "view_customer",
+                url: `https://${process.env.CL_ORGANIZATION_SLUG}.commercelayer.io/admin/customers/${
+                  resource.customer !== null ? resource.customer.id : "null"
+                }/edit`,
+                action_id: "view_customer"
+              }
+            ]
+          },
+          {
+            type: "divider"
+          },
+          {
+            type: "context",
+            elements: [
+              {
+                type: "image",
+                image_url: `${triggerUser.user.profile.image_72}`,
+                alt_text: `${triggerUser.user.profile.display_name || triggerUser.user.profile.real_name}'s avatar`
+              },
+              {
+                type: "mrkdwn",
+                text: `${
+                  triggerUser.user.profile.display_name || triggerUser.user.profile.real_name
+                } has triggered this request.`
+              }
+            ]
+          }
+        ],
+        text: `:shopping_trolley: Return ${"`"}${resource.id}${"`"} from the *${
+          resource.order.country_code
+        }* market includes *${resource.skus_count}* line items, is to be shipped to the *${
+          resource.stock_location.name
+        }*, and was created on *${formatDate(resource.created_at)}*. Here's a quick summary of the resource:`
       });
     })
     .catch(async (error) => {

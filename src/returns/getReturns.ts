@@ -1,14 +1,38 @@
+import CommerceLayerPkg from "@commercelayer/sdk";
+import getToken from "../utils/getToken.js";
 
-// fetch the details of the last return
+const token = await getToken();
 
-// fetch the details of a particular return
+const CommerceLayer = CommerceLayerPkg.default;
+const cl = CommerceLayer({
+  organization: process.env.CL_ORGANIZATION_SLUG,
+  accessToken: token
+});
 
-// fetch current total returns (count and revenue) for the current day
+const getReturnById = async (id: string) => {
+  return await cl.returns.retrieve(id, {
+    include: ["order", "stock_location", "customer", "origin_address", "destination_address"]
+  });
+};
 
-// fetch current total returns (count and revenue) for the week
+const getLastReturn = async (status: string) => {
+  const returns = await cl.returns.list({
+    include: ["order", "stock_location", "customer", "origin_address", "destination_address"],
+    filters: { status_eq: `${status}` },
+    sort: status === "requested" ? { created_at: "desc" } : { approved_at: "desc" }
+  });
 
-// fetch current total returns (count and revenue) for the month
+  return returns.first();
+};
 
-// fetch current total returns (count and revenue) for the year
+// fetch current total returns (count) for the current day
 
-// fetch current total returns (count and revenue) all time
+// fetch current total returns (count) for the week
+
+// fetch current total returns (count) for the month
+
+// fetch current total returns (count) for the year
+
+// fetch current total returns (count) all time
+
+export { getReturnById, getLastReturn };
