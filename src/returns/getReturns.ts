@@ -1,8 +1,10 @@
 import CommerceLayerPkg from "@commercelayer/sdk";
 import getToken from "../utils/getToken.js";
 
-const token = await getToken();
+const organizationSlug = process.env.CL_ORGANIZATION_SLUG;
+const organizationMode = process.env.CL_ORGANIZATION_MODE;
 
+const token = await getToken();
 const CommerceLayer = CommerceLayerPkg.default;
 const cl = CommerceLayer({
   organization: process.env.CL_ORGANIZATION_SLUG,
@@ -10,29 +12,25 @@ const cl = CommerceLayer({
 });
 
 const getReturnById = async (id: string) => {
-  return await cl.returns.retrieve(id, {
+  const returns = await cl.returns.retrieve(id, {
     include: ["order", "stock_location", "customer", "origin_address", "destination_address"]
   });
+
+  return { returns, organizationMode, organizationSlug };
 };
 
 const getLastReturn = async (status: string) => {
-  const returns = await cl.returns.list({
-    include: ["order", "stock_location", "customer", "origin_address", "destination_address"],
-    filters: { status_eq: `${status}` },
-    sort: status === "requested" ? { created_at: "desc" } : { approved_at: "desc" }
-  });
+  const returns = (
+    await cl.returns.list({
+      include: ["order", "stock_location", "customer", "origin_address", "destination_address"],
+      filters: { status_eq: `${status}` },
+      sort: status === "requested" ? { created_at: "desc" } : { approved_at: "desc" }
+    })
+  ).first();
 
-  return returns.first();
+  return { returns, organizationSlug, organizationMode };
 };
 
 // fetch current total returns (count) for the current day
-
-// fetch current total returns (count) for the week
-
-// fetch current total returns (count) for the month
-
-// fetch current total returns (count) for the year
-
-// fetch current total returns (count) all time
 
 export { getReturnById, getLastReturn };
