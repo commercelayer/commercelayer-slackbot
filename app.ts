@@ -127,6 +127,19 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
               fields: [
                 {
                   type: "mrkdwn",
+                  text: `*Payment status:*\n${"`"}${resource.orders.payment_status}${"`"}`
+                },
+                {
+                  type: "mrkdwn",
+                  text: `*Fulfillment status:*\n${"`"}${resource.orders.fulfillment_status}${"`"}`
+                }
+              ]
+            },
+            {
+              type: "section",
+              fields: [
+                {
+                  type: "mrkdwn",
                   text: `*Shipping address:*\n${
                     resource.orders.shipping_address !== null
                       ? resource.orders.shipping_address.full_name +
