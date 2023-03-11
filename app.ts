@@ -506,7 +506,7 @@ const countOrders = async (resourceType, userInput, client, say) => {
             ]
           }
         ],
-        text: ``
+        text: `Here's the progress in *<https://dashboard.commercelayer.io/organizations/${resource.organizationSlug}/settings/information|${resource.organizationSlug}>* for today 🤭:\n *Total number of placed orders:*\n${resource.recordCount} \n *Total revenue:*\n${resource.recordCount}`
       });
     })
     .catch(async (error) => {

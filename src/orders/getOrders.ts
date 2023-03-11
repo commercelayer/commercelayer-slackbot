@@ -36,14 +36,13 @@ const getTodaysOrder = async () => {
   const orders = await cl.orders.list({
     filters: {
       status_eq: "placed",
-      placed_at_gt: `${generateDate()}}`,
-      placed_at_lt: `${generateDate()}}`
+      placed_at_gteq: `${generateDate("today")}}`,
+      placed_at_lt: `${generateDate("next")}}`
     }
   });
   const recordCount = orders.meta.recordCount;
-  const organization = await cl.organization.retrieve();
 
-  return { orders, recordCount, organization };
+  return { orders, recordCount, organizationSlug };
 };
 
 export { getOrderById, getLastOrder, getTodaysOrder };

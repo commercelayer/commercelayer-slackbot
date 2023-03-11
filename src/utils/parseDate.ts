@@ -19,8 +19,17 @@ export const formatDate = (date: string) => {
   return dateObj.toLocaleString("en-US", formatOptions);
 };
 
-export const generateDate = () => {
+export const generateDate = (type: string) => {
   const dateObj = new Date();
-  const date = dateObj.toLocaleString("en-US", generateOptions);
-  return `${dateObj.getFullYear()}-${date.slice(0, 2)}-${date.slice(3, 5)}`;
+  if (type === "today") {
+    const date = dateObj.toLocaleString("en-US", generateOptions);
+    const todaysDate = `${dateObj.getFullYear()}-${date.slice(0, 2)}-${date.slice(3, 5)}`;
+    return todaysDate;
+  } else if (type === "next") {
+    dateObj.setDate(dateObj.getDate() + 1);
+    const date = dateObj.toLocaleDateString("en-US", generateOptions);
+    const nextDate = `${dateObj.getFullYear()}-${date.slice(0, 2)}-${date.slice(3, 5)}`;
+    return nextDate;
+  }
+  return null;
 };
