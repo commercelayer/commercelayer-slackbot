@@ -3,7 +3,7 @@ dotenv.config();
 
 import slackPkg from "@slack/bolt";
 import { getOrderById, getLastOrder, getTodaysOrder } from "./src/orders/getOrders.js";
-import { getReturnById, getLastReturn } from "./src/returns/getReturns.js";
+import { getReturnById, getLastReturn, getTodaysReturn } from "./src/returns/getReturns.js";
 import { customError } from "./src/utils/customError.js";
 import { formatDate } from "./src/utils/parseDate.js";
 
@@ -42,6 +42,11 @@ app.command("/cl", async ({ command, client, ack, say }) => {
   if (command.text.startsWith("orders:today")) {
     const resourceType = getTodaysOrder();
     countOrders(resourceType, command, client, say);
+  }
+
+  if (command.text.startsWith("returns:today")) {
+    const resourceType = getTodaysReturn();
+    countReturns(resourceType, command, client, say);
   }
 
   // Respond with 200 OK since all Slack buttons dispatch a request.
@@ -463,7 +468,6 @@ const countOrders = async (resourceType, userInput, client, say) => {
   });
   await resourceType
     .then(async (resource) => {
-      console.log(resource);
       await say({
         blocks: [
           {
@@ -507,6 +511,71 @@ const countOrders = async (resourceType, userInput, client, say) => {
           }
         ],
         text: `Here's the progress in *<https://dashboard.commercelayer.io/organizations/${resource.organizationSlug}/settings/information|${resource.organizationSlug}>* for today 🤭:\n *Total number of placed orders:*\n${resource.recordCount} \n *Total revenue:*\n${resource.recordCount}`
+      });
+    })
+    .catch(async (error) => {
+      await say({
+        blocks: [
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: `> :warning: Command ${"`"}${userInput.command} ${
+                userInput.text
+              }${"`"} failed with error: ${"```"}${JSON.stringify(error, null, 2)}${"```"}`
+            }
+          }
+        ],
+        text: error
+      });
+    });
+};
+
+const countReturns = async (resourceType, userInput, client, say) => {
+  const triggerUser = await client.users.info({
+    user: userInput.user_id
+  });
+  await resourceType
+    .then(async (resource) => {
+      await say({
+        blocks: [
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: `Here's the progress in *<https://dashboard.commercelayer.io/organizations/${resource.organizationSlug}/settings/information|${resource.organizationSlug}>* for today 🤭:`
+            }
+          },
+          {
+            type: "divider"
+          },
+          {
+            type: "section",
+            fields: [
+              {
+                type: "mrkdwn",
+                text: `*Total number of requested returns:*\n${resource.recordCount}`
+              }
+            ]
+          },
+          {
+            type: "context",
+            elements: [
+              {
+                type: "image",
+                image_url: `${triggerUser.user.profile.image_72}`,
+                alt_text: `${triggerUser.user.profile.display_name || triggerUser.user.profile.real_name}'s avatar`
+              },
+              {
+                type: "mrkdwn",
+                text: `${
+                  triggerUser.user.profile.display_name || triggerUser.user.profile.real_name
+                } has triggered this request.`
+              }
+            ]
+          }
+        ],
+        text: `Here's the progress in *<https://dashboard.commercelayer.io/organizations/${resource.organizationSlug}/settings/information|${resource.organizationSlug}>* for today 🤭:\n *Total number of requested returns:*\n${resource.recordCount}`
       });
     })
     .catch(async (error) => {

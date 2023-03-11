@@ -1,5 +1,6 @@
 import CommerceLayerPkg from "@commercelayer/sdk";
 import getToken from "../utils/getToken.js";
+import { generateDate } from "../utils/parseDate.js";
 
 const organizationSlug = process.env.CL_ORGANIZATION_SLUG;
 const organizationMode = process.env.CL_ORGANIZATION_MODE;
@@ -31,6 +32,17 @@ const getLastReturn = async (status: string) => {
   return { returns, organizationSlug, organizationMode };
 };
 
-// fetch current total returns (count) for the current day
+const getTodaysReturn = async () => {
+  const returns = await cl.returns.list({
+    filters: {
+      status_eq: "requested",
+      created_at_gteq: `${generateDate("today")}}`,
+      created_at_lt: `${generateDate("next")}}`
+    }
+  });
+  const recordCount = returns.meta.recordCount;
 
-export { getReturnById, getLastReturn };
+  return { returns, recordCount, organizationSlug };
+};
+
+export { getReturnById, getLastReturn, getTodaysReturn };
