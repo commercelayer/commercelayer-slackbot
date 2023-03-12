@@ -58,13 +58,16 @@ const getTodaysOrder = async (currency: string) => {
     return acc + order.total_amount_cents;
   }, 0);
 
-  const revenueCount = (revenue / 100).toLocaleString(
-    `${allOrdersByMarket[0].language_code}-${allOrdersByMarket[0].country_code}`,
-    {
-      style: "currency",
-      currency: `${allOrdersByMarket[0].currency_code}`
-    }
-  );
+  let revenueCount;
+  allOrdersByMarketCount !== 0
+    ? (revenueCount = (revenue / 100).toLocaleString(
+        `${allOrdersByMarket[0].language_code}-${allOrdersByMarket[0].country_code}`,
+        {
+          style: "currency",
+          currency: `${allOrdersByMarket[0].currency_code}`
+        }
+      ))
+    : (revenueCount = 0);
 
   return {
     allOrdersCount,
