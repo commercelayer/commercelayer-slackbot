@@ -20,10 +20,10 @@ app.command("/cl", async ({ command, client, ack, say }) => {
   if (command.text.startsWith("order ")) {
     const resourceType = getOrderById(command.text.replace("order ", ""));
     getOrderResource(resourceType, command, client, say);
-  } else if (command.text === "order:p last" || command.text === "order:last") {
+  } else if (command.text === "orders:p last" || command.text === "orders:last") {
     const resourceType = getLastOrder("placed");
     getOrderResource(resourceType, command, client, say);
-  } else if (command.text === "order:a last") {
+  } else if (command.text === "orders:a last") {
     const resourceType = getLastOrder("approved");
     getOrderResource(resourceType, command, client, say);
   }
@@ -31,16 +31,16 @@ app.command("/cl", async ({ command, client, ack, say }) => {
   if (command.text.startsWith("return ")) {
     const resourceType = getReturnById(command.text.replace("return ", ""));
     getReturnResource(resourceType, command, client, say);
-  } else if (command.text === "return:r last" || command.text === "return:last") {
+  } else if (command.text === "returns:r last" || command.text === "returns:last") {
     const resourceType = getLastReturn("requested");
     getReturnResource(resourceType, command, client, say);
-  } else if (command.text === "return:a last") {
+  } else if (command.text === "returns:a last") {
     const resourceType = getLastReturn("approved");
     getReturnResource(resourceType, command, client, say);
   }
 
-  if (command.text.startsWith("orders:today")) {
-    const resourceType = getTodaysOrder();
+  if (command.text.startsWith("orders:today ")) {
+    const resourceType = getTodaysOrder(command.text.replace("orders:today ", ""));
     countOrders(resourceType, command, client, say);
   }
 
@@ -482,16 +482,24 @@ const countOrders = async (resourceType, userInput, client, say) => {
           },
           {
             type: "section",
-            fields: [
-              {
-                type: "mrkdwn",
-                text: `*Total number of placed orders:*\n${resource.recordCount}`
-              },
-              {
-                type: "mrkdwn",
-                text: `*Total revenue:*\n${resource.recordCount}`
-              }
-            ]
+            text: {
+              type: "mrkdwn",
+              text: `*Total number of placed orders (all markets):*\n${resource.allOrdersCount}`
+            }
+          },
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: `*Total number of placed orders (${resource.currencyName}):*\n${resource.allOrdersByMarketCount}`
+            }
+          },
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: `*Total revenue:*\n${resource.revenueCount}`
+            }
           },
           {
             type: "context",
@@ -510,7 +518,7 @@ const countOrders = async (resourceType, userInput, client, say) => {
             ]
           }
         ],
-        text: `Here's the progress in *<https://dashboard.commercelayer.io/organizations/${resource.organizationSlug}/settings/information|${resource.organizationSlug}>* for today 🤭:\n *Total number of placed orders:*\n${resource.recordCount} \n *Total revenue:*\n${resource.recordCount}`
+        text: `Here's the progress in *<https://dashboard.commercelayer.io/organizations/${resource.organizationSlug}/settings/information|${resource.organizationSlug}>* for today 🤭:\n *Total number of placed orders (all markets):*\n${resource.recordCount} \n *Total number of placed orders (${resource.currencyName}):*\n${resource.allOrdersByMarketCount} \n *Total revenue:*\n${resource.recordCount}`
       });
     })
     .catch(async (error) => {

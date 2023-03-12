@@ -32,17 +32,47 @@ const getLastOrder = async (status: string) => {
   return { orders, organizationSlug, organizationMode };
 };
 
-const getTodaysOrder = async () => {
-  const orders = await cl.orders.list({
+const getTodaysOrder = async (currency: string) => {
+  const currencyName = currency.toUpperCase();
+
+  const allOrders = await cl.orders.list({
     filters: {
       status_eq: "placed",
       placed_at_gteq: `${generateDate("today")}}`,
       placed_at_lt: `${generateDate("next")}}`
     }
   });
-  const recordCount = orders.meta.recordCount;
+  const allOrdersCount = allOrders.meta.recordCount;
 
-  return { orders, recordCount, organizationSlug };
+  const allOrdersByMarket = await cl.orders.list({
+    filters: {
+      currency_code_eq: `${currencyName}`,
+      status_eq: "placed",
+      placed_at_gteq: `${generateDate("today")}}`,
+      placed_at_lt: `${generateDate("next")}}`
+    }
+  });
+  const allOrdersByMarketCount = allOrdersByMarket.meta.recordCount;
+
+  const revenue = allOrdersByMarket.reduce((acc, order) => {
+    return acc + order.total_amount_cents;
+  }, 0);
+
+  const revenueCount = (revenue / 100).toLocaleString(
+    `${allOrdersByMarket[0].language_code}-${allOrdersByMarket[0].country_code}`,
+    {
+      style: "currency",
+      currency: `${allOrdersByMarket[0].currency_code}`
+    }
+  );
+
+  return {
+    allOrdersCount,
+    allOrdersByMarketCount,
+    revenueCount,
+    currencyName,
+    organizationSlug
+  };
 };
 
 export { getOrderById, getLastOrder, getTodaysOrder };
