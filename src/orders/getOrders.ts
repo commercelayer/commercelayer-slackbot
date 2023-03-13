@@ -13,25 +13,33 @@ const cl = CommerceLayer({
 });
 
 const getOrderById = async (id: string) => {
-  const orders = await cl.orders.retrieve(id, {
-    include: ["customer", "market", "shipments", "shipping_address", "billing_address", "payment_method"]
-  });
+  try {
+    const orders = await cl.orders.retrieve(id, {
+      include: ["customer", "market", "shipments", "shipping_address", "billing_address", "payment_method"]
+    });
 
-  const checkoutAccessToken = await getCheckoutToken(orders.market.number);
+    const checkoutAccessToken = await getCheckoutToken(orders.market.number);
 
-  return { orders, organizationSlug, organizationMode, checkoutAccessToken };
+    return { orders, organizationSlug, organizationMode, checkoutAccessToken };
+  } catch (error) {
+    return { error };
+  }
 };
 
 const getLastOrder = async (status: string) => {
-  const orders = (
-    await cl.orders.list({
-      include: ["customer", "market", "shipments", "shipping_address", "billing_address", "payment_method"],
-      filters: { status_eq: `${status}` },
-      sort: status === "placed" ? { placed_at: "desc" } : { approved_at: "desc" }
-    })
-  ).first();
+  try {
+    const orders = (
+      await cl.orders.list({
+        include: ["customer", "market", "shipments", "shipping_address", "billing_address", "payment_method"],
+        filters: { status_eq: `${status}` },
+        sort: status === "placed" ? { placed_at: "desc" } : { approved_at: "desc" }
+      })
+    ).first();
 
-  return { orders, organizationSlug, organizationMode };
+    return { orders, organizationSlug, organizationMode };
+  } catch (error) {
+    return { error };
+  }
 };
 
 const getTodaysOrder = async (currency: string) => {

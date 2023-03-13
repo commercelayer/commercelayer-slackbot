@@ -13,23 +13,31 @@ const cl = CommerceLayer({
 });
 
 const getReturnById = async (id: string) => {
-  const returns = await cl.returns.retrieve(id, {
-    include: ["order", "stock_location", "customer", "origin_address", "destination_address"]
-  });
+  try {
+    const returns = await cl.returns.retrieve(id, {
+      include: ["order", "stock_location", "customer", "origin_address", "destination_address"]
+    });
 
-  return { returns, organizationMode, organizationSlug };
+    return { returns, organizationMode, organizationSlug };
+  } catch (error) {
+    return { error };
+  }
 };
 
 const getLastReturn = async (status: string) => {
-  const returns = (
-    await cl.returns.list({
-      include: ["order", "stock_location", "customer", "origin_address", "destination_address"],
-      filters: { status_eq: `${status}` },
-      sort: status === "requested" ? { created_at: "desc" } : { approved_at: "desc" }
-    })
-  ).first();
+  try {
+    const returns = (
+      await cl.returns.list({
+        include: ["order", "stock_location", "customer", "origin_address", "destination_address"],
+        filters: { status_eq: `${status}` },
+        sort: status === "requested" ? { created_at: "desc" } : { approved_at: "desc" }
+      })
+    ).first();
 
-  return { returns, organizationSlug, organizationMode };
+    return { returns, organizationSlug, organizationMode };
+  } catch (error) {
+    return { error };
+  }
 };
 
 const getTodaysReturn = async () => {
