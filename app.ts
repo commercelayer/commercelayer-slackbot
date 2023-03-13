@@ -5,7 +5,7 @@ import slackPkg from "@slack/bolt";
 import { getOrderById, getLastOrder, getTodaysOrder } from "./src/orders/getOrders.js";
 import { getReturnById, getLastReturn, getTodaysReturn } from "./src/returns/getReturns.js";
 import { customError } from "./src/utils/customError.js";
-import { formatDate } from "./src/utils/parseDate.js";
+import { formatTimestamp } from "./src/utils/parseDate.js";
 
 const { App } = slackPkg;
 const app = new App({
@@ -74,7 +74,7 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
               }
             }
           ],
-          text: customError("Return")
+          text: customError("Order")
         });
       } else {
         await say({
@@ -87,9 +87,11 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
                   resource.orders.market.name
                 }* market has a total amount of *${resource.orders.formatted_subtotal_amount}* and was ${
                   resource.orders.placed_at !== null ? "placed" : "created"
-                } on *${formatDate(
+                } on <!date^${formatTimestamp(
                   resource.orders.placed_at !== null ? resource.orders.placed_at : resource.orders.created_at
-                )}*. Here's a quick summary of the resource:`
+                )}^{date_long} at {time}|${
+                  resource.orders.placed_at !== null ? resource.orders.placed_at : resource.orders.created_at
+                }>. Here's a quick summary of the resource:`
               }
             },
             {
@@ -260,13 +262,15 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
               ]
             }
           ],
-          text: `:shopping_trolley: resource ${"`"}${resource.orders.id}${"`"} from the *${
+          text: `:shopping_trolley: Order ${"`"}${resource.orders.id}${"`"} from the *${
             resource.orders.market.name
-          }* market has a total amount of *${
-            resource.orders.formatted_subtotal_amount
-          }* and was placed on *${formatDate(
+          }* market has a total amount of *${resource.orders.formatted_subtotal_amount}* and was ${
+            resource.orders.placed_at !== null ? "placed" : "created"
+          } on <!date^${formatTimestamp(
             resource.orders.placed_at !== null ? resource.orders.placed_at : resource.orders.created_at
-          )}*.`
+          )}^*{date_long}* at *{time}*|${
+            resource.orders.placed_at !== null ? resource.orders.placed_at : resource.orders.created_at
+          }>.`
         });
       }
     })
@@ -290,7 +294,8 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
 
 const getReturnResource = async (resourceType, userInput, client, say) => {
   const triggerUser = await client.users.info({
-    user: userInput.user_id
+    user: userInput.user_id,
+    include_locale: true
   });
   await resourceType
     .then(async (resource) => {
@@ -320,9 +325,9 @@ const getReturnResource = async (resourceType, userInput, client, say) => {
                   resource.returns.order.country_code
                 }* market includes *${resource.returns.skus_count}* line items, is to be shipped to the *${
                   resource.returns.stock_location.name
-                }*, and was created on *${formatDate(
+                }*, and was created on <!date^${formatTimestamp(
                   resource.returns.created_at
-                )}*. Here's a quick summary of the resource:`
+                )}^*{date_long}* at *{time}*|${resource.returns.created_at}>. Here's a quick summary of the resource:`
               }
             },
             {
@@ -437,14 +442,15 @@ const getReturnResource = async (resourceType, userInput, client, say) => {
           ],
           text: `:shopping_trolley: Return ${"`"}${resource.returns.id}${"`"} from the *${
             resource.returns.order.country_code
-          }* market includes *${resource.skus_count}* line items, is to be shipped to the *${
+          }* market includes *${resource.returns.skus_count}* line items, is to be shipped to the *${
             resource.returns.stock_location.name
-          }*, and was created on *${formatDate(resource.returns.created_at)}*. Here's a quick summary of the resource:`
+          }*, and was created on <!date^${formatTimestamp(resource.returns.created_at)}^*{date_long}* at *{time}*|${
+            resource.returns.created_at
+          }>.`
         });
       }
     })
     .catch(async (error) => {
-      console.log(error);
       await say({
         blocks: [
           {
