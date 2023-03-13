@@ -5,7 +5,7 @@ import { getSalesChannelToken, getIntegrationToken } from "@commercelayer/js-aut
 
 const BASE_ENDPOINT = `https://${process.env.CL_ORGANIZATION_SLUG}.commercelayer.io`;
 const CLIENT_ID = process.env.CL_CLIENT_ID;
-const CLIENT_ID_CART = process.env.CL_CLIENT_ID_CART;
+const CLIENT_ID_CHECKOUT = process.env.CL_CLIENT_ID_CHECKOUT;
 const CLIENT_SECRET = process.env.CL_CLIENT_SECRET;
 
 export const getToken = async () => {
@@ -17,10 +17,10 @@ export const getToken = async () => {
   return auth.accessToken;
 };
 
-export const getCartToken = async (marketNumber: number) => {
+export const getCheckoutToken = async (marketNumber: number) => {
   const auth = await getSalesChannelToken({
     endpoint: BASE_ENDPOINT,
-    clientId: CLIENT_ID_CART,
+    clientId: CLIENT_ID_CHECKOUT,
     scope: `market:${marketNumber}`
   });
   return auth.accessToken;
