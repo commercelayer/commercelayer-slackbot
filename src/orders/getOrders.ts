@@ -1,5 +1,5 @@
 import CommerceLayerPkg from "@commercelayer/sdk";
-import getToken from "../utils/getToken.js";
+import { getToken, getCartToken } from "../utils/getToken.js";
 import { generateDate } from "../utils/parseDate.js";
 
 const organizationSlug = process.env.CL_ORGANIZATION_SLUG;
@@ -17,7 +17,9 @@ const getOrderById = async (id: string) => {
     include: ["customer", "market", "shipments", "shipping_address", "billing_address", "payment_method"]
   });
 
-  return { orders, organizationSlug, organizationMode };
+  const cartAccessToken = await getCartToken(orders.market.number);
+
+  return { orders, organizationSlug, organizationMode, cartAccessToken };
 };
 
 const getLastOrder = async (status: string) => {

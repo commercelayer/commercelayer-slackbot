@@ -1,5 +1,5 @@
 import CommerceLayerPkg from "@commercelayer/sdk";
-import getToken from "../utils/getToken.js";
+import { getToken } from "../utils/getToken.js";
 import { generateDate } from "../utils/parseDate.js";
 
 const organizationSlug = process.env.CL_ORGANIZATION_SLUG;

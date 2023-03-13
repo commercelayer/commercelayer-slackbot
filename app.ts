@@ -198,10 +198,20 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
             {
               type: "actions",
               elements: [
-                resource.orders.cart_url === null ||
-                resource.orders.status === "placed" ||
-                resource.orders.status === "approved"
+                resource.orders.status === "pending"
                   ? {
+                      type: "button",
+                      text: {
+                        type: "plain_text",
+                        text: "Checkout Order",
+                        emoji: true
+                      },
+                      style: "primary",
+                      value: "checkout_order",
+                      url: `https://${resource.organizationSlug}.commercelayer.app/cart/${resource.orders.id}?accessToken=${resource.cartAccessToken}`,
+                      action_id: "check_order"
+                    }
+                  : {
                       type: "button",
                       text: {
                         type: "plain_text",
@@ -213,18 +223,6 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
                       url: `https://dashboard.commercelayer.io/${
                         resource.organizationMode === "live" ? "live" : "test"
                       }/${resource.organizationSlug}/resources/orders/${resource.orders.id}`,
-                      action_id: "check_order"
-                    }
-                  : {
-                      type: "button",
-                      text: {
-                        type: "plain_text",
-                        text: "Checkout Order",
-                        emoji: true
-                      },
-                      style: "primary",
-                      value: "checkout_order",
-                      url: `${resource.orders.cart_url}`,
                       action_id: "check_order"
                     },
                 {
@@ -325,9 +323,9 @@ const getReturnResource = async (resourceType, userInput, client, say) => {
                   resource.returns.order.country_code
                 }* market includes *${resource.returns.skus_count}* line items, is to be shipped to the *${
                   resource.returns.stock_location.name
-                }*, and was created on <!date^${formatTimestamp(
+                }*, and was created on <!date^${formatTimestamp(resource.returns.created_at)}^{date_long} at {time}|${
                   resource.returns.created_at
-                )}^*{date_long}* at *{time}*|${resource.returns.created_at}>. Here's a quick summary of the resource:`
+                }>. Here's a quick summary of the resource:`
               }
             },
             {
@@ -444,7 +442,7 @@ const getReturnResource = async (resourceType, userInput, client, say) => {
             resource.returns.order.country_code
           }* market includes *${resource.returns.skus_count}* line items, is to be shipped to the *${
             resource.returns.stock_location.name
-          }*, and was created on <!date^${formatTimestamp(resource.returns.created_at)}^*{date_long}* at *{time}*|${
+          }*, and was created on <!date^${formatTimestamp(resource.returns.created_at)}^{date_long} at {time}|${
             resource.returns.created_at
           }>.`
         });
