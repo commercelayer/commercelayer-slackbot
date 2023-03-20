@@ -262,7 +262,7 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
         resource.orders.placed_at !== null ? "placed" : "created"
       } on <!date^${formatTimestamp(
         resource.orders.placed_at !== null ? resource.orders.placed_at : resource.orders.created_at
-      )}^*{date_long}* at *{time}*|${
+      )}^{date_long} at {time}|${
         resource.orders.placed_at !== null ? resource.orders.placed_at : resource.orders.created_at
       }>.`
     });

@@ -5,6 +5,7 @@
   "main": "",
   "type": "module",
   "scripts": {
+    "dev": "ngrok http 3000",
     "start": "nodemon build/app.js",
     "build": "npx tsc -w",
     "test": "",
@@ -31,8 +32,7 @@
     "@commercelayer/js-auth": "^2.3.0",
     "@commercelayer/sdk": "^4.25.0",
     "@slack/bolt": "^3.12.2",
-    "dotenv": "^16.0.3",
-    "js-cookie": "^3.0.1"
+    "dotenv": "^16.0.3"
   },
   "devDependencies": {
     "nodemon": "^2.0.20",
