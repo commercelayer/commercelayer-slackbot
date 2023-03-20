@@ -1,7 +1,7 @@
 {
   "name": "commercelayer-slackbot",
   "version": "1.0.0",
-  "description": "A slackbot that alerts a Commerce Layer organization for new orders/returns.",
+  "description": "The official Commerce Layer slackbot for orders and returns summaries.",
   "main": "",
   "type": "module",
   "scripts": {
@@ -12,7 +12,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/BolajiAyodeji/cl-slackbot.git"
+    "url": "git+https://github.com/commercelayer/commercelayer-slackbot.git"
   },
   "keywords": [
     "commercelayer",
@@ -24,9 +24,9 @@
   "author": "Bolaji Ayodeji <bolaji@commercelayer.io>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/BolajiAyodeji/cl-slackbot/issues"
+    "url": "https://github.com/commercelayer/commercelayer-slackbot/issues"
   },
-  "homepage": "https://github.com/BolajiAyodeji/cl-slackbot#readme",
+  "homepage": "https://github.com/commercelayer/commercelayer-slackbot#readme",
   "dependencies": {
     "@commercelayer/js-auth": "^2.3.0",
     "@commercelayer/sdk": "^4.25.0",
