@@ -2,15 +2,367 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 import slackPkg from "@slack/bolt";
+import { database } from "./src/database/supabaseClient.js";
 import { getOrderById, getLastOrder, getTodaysOrder } from "./src/orders/getOrders.js";
 import { getReturnById, getLastReturn, getTodaysReturn } from "./src/returns/getReturns.js";
 import { customError } from "./src/utils/customError.js";
 import { formatTimestamp } from "./src/utils/parseDate.js";
 
-const { App } = slackPkg;
+const { App, LogLevel } = slackPkg;
+
 const app = new App({
-  token: process.env.SLACK_BOT_TOKEN,
-  signingSecret: process.env.SLACK_SIGNING_SECRET
+  logLevel: LogLevel.DEBUG,
+  clientId: process.env.SLACK_CLIENT_ID,
+  clientSecret: process.env.SLACK_CLIENT_SECRET,
+  signingSecret: process.env.SLACK_SIGNING_SECRET,
+  stateSecret: process.env.SLACK_STATE_SECRET,
+  scopes: [
+    "channels:history",
+    "chat:write",
+    "chat:write.public",
+    "commands",
+    "groups:history",
+    "im:history",
+    "im:write",
+    "incoming-webhook",
+    "mpim:history",
+    "mpim:write",
+    "users:read"
+  ],
+  installationStore: {
+    storeInstallation: async (installation, logger) => {
+      logger.info("STORING SLACK INSTALLATION.....");
+      if (installation.isEnterpriseInstall && installation.enterprise !== undefined) {
+        const { data, error } = await database.from("users").insert({
+          slack_id: installation.enterprise.id,
+          slack_installation_store: installation,
+          is_enterprise: installation.isEnterpriseInstall
+        });
+        if (error) throw error;
+        return data;
+      }
+      if (installation.team !== undefined) {
+        const { data, error } = await database.from("users").insert({
+          slack_id: installation.team.id,
+          slack_installation_store: installation,
+          is_enterprise: installation.isEnterpriseInstall
+        });
+        if (error) throw error;
+        return data;
+      }
+      throw new Error("Failed saving installation data to installationStore.");
+    },
+    fetchInstallation: async (installQuery, logger) => {
+      logger.info("FETCHING SLACK INSTALLATION.....");
+      if (installQuery.isEnterpriseInstall && installQuery.enterpriseId !== undefined) {
+        const { data, error } = await database
+          .from("users")
+          .select("slack_installation_store")
+          .eq("slack_id", installQuery.enterpriseId);
+        if (error) throw error;
+        return data[0].slack_installation_store;
+      }
+      if (installQuery.teamId !== undefined) {
+        const { data, error } = await database
+          .from("users")
+          .select("slack_installation_store")
+          .eq("slack_id", installQuery.teamId);
+        if (error) throw error;
+        return data[0].slack_installation_store;
+      }
+      throw new Error("Failed fetching installation.");
+    },
+    deleteInstallation: async (installQuery, logger) => {
+      logger.info("DELETING SLACK INSTALLATION.....");
+      if (installQuery.isEnterpriseInstall && installQuery.enterpriseId !== undefined) {
+        const { data, error } = await database.from("users").delete().eq("slack_id", installQuery.enterpriseId);
+        if (error) throw error;
+        return data;
+      }
+      if (installQuery.teamId !== undefined) {
+        const { data, error } = await database.from("users").delete().eq("slack_id", installQuery.teamId);
+        if (error) throw error;
+        return data;
+      }
+      throw new Error("Failed to delete installation.");
+    }
+  },
+  installerOptions: {
+    directInstall: true,
+    callbackOptions: {
+      failure: (error, installation, req, res) => {
+        if (error.code === "23505") {
+          res.writeHead(400, { "Content-Type": "text/html; charset=utf-8" });
+          const html = `<html>
+          <head>
+          <style>
+          body {
+            padding: 10px 15px;
+            font-family: verdana;
+            text-align: center;
+          }
+          </style>
+          </head>
+          <body>
+          <h2>Oops, Something Went Wrong!</h2>
+          <p>Commerce Layer Bot 🤖 is already installed in this Slack workspace.</p>
+          <p>You can go ahead and start using the existing installation.</p>
+          <br />
+          <p>Please try again or contact the app owner (reason: ${error.code})</p>
+          </body>
+          </html>`;
+          res.end(html);
+        }
+      }
+    }
+  }
+});
+
+// Listen to the app_home_opened Events API (App Home Tab)
+app.event("app_home_opened", async ({ client, logger, payload }) => {
+  const userId = payload.user;
+
+  try {
+    const result = await client.views.publish({
+      user_id: userId,
+      view: {
+        type: "home",
+        blocks: [
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: `*Welcome, <@${userId}>! :wave: :wink:*`
+            }
+          },
+          {
+            type: "divider"
+          },
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: "The *Commerce Layer App* let's you get orders and returns summaries from all markets in your organization. Here are a few things you can do:"
+            }
+          },
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: "• Fetch the summary of an order resource (`/cl order [order ID]`).\n • Fetch the summary of the last placed order resource in your organization (`/cl orders:last`).\n • Fetch the summary of the last approved order resource in your organization (`/cl orders:a last`).\n • Fetch the current total number and revenue of orders today (`/cl orders:today [currency code]`).\n • Fetch the summary of a return resource (`/cl return [return ID]`).\n • And much more..."
+            }
+          },
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: "But before you can do all these amazing things, we need you to connect your organization by providing some credentials."
+            }
+          },
+          {
+            type: "actions",
+            elements: [
+              {
+                type: "button",
+                text: {
+                  type: "plain_text",
+                  text: "Connect organization",
+                  emoji: true
+                },
+                style: "primary",
+                value: "cl_org",
+                action_id: "action_connect_cl_org"
+              }
+            ]
+          }
+        ]
+      }
+    });
+    logger.info(result);
+  } catch (error) {
+    logger.error(error);
+  }
+});
+
+// Listen to trigger button (modal with the configuration form)
+app.action({ action_id: "action_connect_cl_org", type: "block_actions" }, async ({ ack, body, client, logger }) => {
+  await ack();
+
+  try {
+    const result = await client.views.open({
+      trigger_id: body.trigger_id,
+      view: {
+        type: "modal",
+        callback_id: "callback_cl_modal_view",
+        title: {
+          type: "plain_text",
+          text: "Configure CL Slackbot"
+        },
+        submit: {
+          type: "plain_text",
+          text: "Submit",
+          emoji: true
+        },
+        close: {
+          type: "plain_text",
+          text: "Cancel",
+          emoji: true
+        },
+        blocks: [
+          {
+            type: "input",
+            block_id: "block_cl_slug",
+            element: {
+              type: "plain_text_input",
+              action_id: "action_cl_slug"
+            },
+            label: {
+              type: "plain_text",
+              text: "Organization Slug"
+            },
+            hint: {
+              type: "plain_text",
+              text: "E.g., cake-store"
+            }
+          },
+          {
+            type: "input",
+            block_id: "block_cl_mode",
+            element: {
+              type: "static_select",
+              options: [
+                {
+                  text: {
+                    type: "plain_text",
+                    text: "Test",
+                    emoji: true
+                  },
+                  value: "test"
+                },
+                {
+                  text: {
+                    type: "plain_text",
+                    text: "Live",
+                    emoji: true
+                  },
+                  value: "live"
+                }
+              ],
+              action_id: "action_cl_mode"
+            },
+            label: {
+              type: "plain_text",
+              text: "Organization Mode"
+            }
+          },
+          {
+            type: "input",
+            block_id: "block_cl_client_id",
+            element: {
+              type: "plain_text_input",
+              action_id: "action_cl_client_id"
+            },
+            label: {
+              type: "plain_text",
+              text: "Integration Client ID"
+            }
+          },
+          {
+            type: "input",
+            block_id: "block_cl_client_secret",
+            element: {
+              type: "plain_text_input",
+              action_id: "action_cl_client_secret"
+            },
+            label: {
+              type: "plain_text",
+              text: "Integration Client Secret"
+            }
+          },
+          {
+            type: "input",
+            block_id: "block_cl_sales_client_id",
+            element: {
+              type: "plain_text_input",
+              action_id: "action_cl_sales_client_id"
+            },
+            label: {
+              type: "plain_text",
+              text: "Sales Channel Client ID"
+            },
+            hint: {
+              type: "plain_text",
+              text: "This is needed for hosted-checkout"
+            }
+          }
+        ]
+      }
+    });
+    logger.info(result);
+  } catch (error) {
+    logger.error(error);
+  }
+});
+
+// Handle  the view_submission request (form data)
+app.view("callback_cl_modal_view", async ({ ack, body, view, client, logger }) => {
+  await ack();
+
+  const user = body.user.id;
+  const slackId = body.team.id || body.enterprise.id;
+  const formValuesObject = {
+    slug: view["state"]["values"]["block_cl_slug"]["action_cl_slug"].value,
+    mode: view["state"]["values"]["block_cl_mode"]["action_cl_mode"].selected_option.value,
+    salesClientId: view["state"]["values"]["block_cl_client_id"]["action_cl_client_id"].value,
+    salesClientSecret: view["state"]["values"]["block_cl_client_secret"]["action_cl_client_secret"].value,
+    integrationClientId: view["state"]["values"]["block_cl_sales_client_id"]["action_cl_sales_client_id"].value
+  };
+  console.log(user, slackId, formValuesObject);
+
+  const credentialsData = await database
+    .from("users")
+    .update({
+      cl_app_credentials: formValuesObject
+    })
+    .eq("slack_id", slackId);
+
+  try {
+    await client.chat.postMessage({
+      channel: user,
+      blocks:
+        credentialsData.status === 204
+          ? [
+              {
+                type: "section",
+                text: {
+                  type: "plain_text",
+                  text: ":white_check_mark: Your organization credentials was submitted successfully."
+                }
+              },
+              {
+                type: "image",
+                image_url: "https://media2.giphy.com/media/Gjoz5izVy7gSA/giphy.gif",
+                alt_text: "GIF of a man dancing happily"
+              }
+            ]
+          : [
+              {
+                type: "section",
+                text: {
+                  type: "plain_text",
+                  text: ":warning: There was an error with your organization credentials submission. Please try again."
+                }
+              },
+              {
+                type: "image",
+                image_url: "https://media3.giphy.com/media/snEeOh54kCFxe/giphy.gif§§",
+                alt_text: "GIF of two sad men"
+              }
+            ]
+    });
+  } catch (error) {
+    logger.error(error);
+  }
 });
 
 // Acknowledge and respond to all requests to the /cl slash command.
