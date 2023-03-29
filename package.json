@@ -2,11 +2,10 @@
   "name": "commercelayer-slackbot",
   "version": "1.0.0",
   "description": "The official Commerce Layer slackbot for orders and returns summaries.",
-  "main": "",
-  "type": "module",
+  "main": "app.ts",
   "scripts": {
     "dev": "ngrok http 3000",
-    "start": "nodemon build/app.js",
+    "start": "nodemon build/app",
     "build": "npx tsc -w",
     "test": "",
     "prettier": "prettier --config .prettierrc --write .",

@@ -1,18 +1,8 @@
-import CommerceLayerPkg from "@commercelayer/sdk";
-import { getToken } from "../utils/getToken.js";
-import { generateDate } from "../utils/parseDate.js";
+import { ConfigOptions } from "../types/config";
+import { generateDate } from "../utils/parseDate";
 
-const organizationSlug = process.env.CL_ORGANIZATION_SLUG;
-const organizationMode = process.env.CL_ORGANIZATION_MODE;
-
-const token = await getToken();
-const CommerceLayer = CommerceLayerPkg.default;
-const cl = CommerceLayer({
-  organization: process.env.CL_ORGANIZATION_SLUG,
-  accessToken: token
-});
-
-const getReturnById = async (id: string) => {
+const getReturnById = async (id: string, config: ConfigOptions) => {
+  const { cl, organizationSlug, organizationMode } = config;
   try {
     const returns = await cl.returns.retrieve(id, {
       include: ["order", "stock_location", "customer", "origin_address", "destination_address"]
@@ -24,7 +14,8 @@ const getReturnById = async (id: string) => {
   }
 };
 
-const getLastReturn = async (status: string) => {
+const getLastReturn = async (status: string, config: ConfigOptions) => {
+  const { cl, organizationSlug, organizationMode } = config;
   try {
     const returns = (
       await cl.returns.list({
@@ -40,7 +31,8 @@ const getLastReturn = async (status: string) => {
   }
 };
 
-const getTodaysReturn = async () => {
+const getTodaysReturn = async (config: ConfigOptions) => {
+  const { cl, organizationSlug } = config;
   const returns = await cl.returns.list({
     filters: {
       status_eq: "requested",

@@ -1,4 +1,12 @@
-import slackPkg from "@slack/bolt";
+import { Installation } from "@slack/bolt";
+
+export type credentialsJson = {
+  mode: string;
+  slug: string;
+  salesClientId: string;
+  integrationClientId: string;
+  salesClientSecret: string;
+};
 
 export interface Database {
   public: {
@@ -10,8 +18,8 @@ export interface Database {
           updated_at: string | null;
           is_enterprise: boolean | null;
           slack_id: string;
-          slack_installation_store: slackPkg.Installation<"v1" | "v2", boolean>;
-          cl_app_credentials: Object | null;
+          slack_installation_store: Installation<"v1" | "v2", boolean>;
+          cl_app_credentials: credentialsJson | null;
         };
         Insert: {
           id?: number;

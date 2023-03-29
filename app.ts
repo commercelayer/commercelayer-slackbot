@@ -1,14 +1,13 @@
 import * as dotenv from "dotenv";
 dotenv.config();
 
-import slackPkg from "@slack/bolt";
-import { database } from "./src/database/supabaseClient.js";
-import { getOrderById, getLastOrder, getTodaysOrder } from "./src/orders/getOrders.js";
-import { getReturnById, getLastReturn, getTodaysReturn } from "./src/returns/getReturns.js";
-import { customError } from "./src/utils/customError.js";
-import { formatTimestamp } from "./src/utils/parseDate.js";
-
-const { App, LogLevel } = slackPkg;
+import { App, LogLevel } from "@slack/bolt";
+import { getOrderById, getLastOrder, getTodaysOrder } from "./src/orders/getOrders";
+import { getReturnById, getLastReturn, getTodaysReturn } from "./src/returns/getReturns";
+import { database } from "./src/database/supabaseClient";
+import { customError } from "./src/utils/customError";
+import { formatTimestamp } from "./src/utils/parseDate";
+import { initConfig } from "./src/utils/config";
 
 const app = new App({
   logLevel: LogLevel.DEBUG,
@@ -90,7 +89,7 @@ const app = new App({
   installerOptions: {
     directInstall: true,
     callbackOptions: {
-      failure: (error, installation, req, res) => {
+      failure: (error, _installation, _req, res) => {
         if (error.code === "23505") {
           res.writeHead(400, { "Content-Type": "text/html; charset=utf-8" });
           const html = `<html>
@@ -317,7 +316,6 @@ app.view("callback_cl_modal_view", async ({ ack, body, view, client, logger }) =
     salesClientSecret: view["state"]["values"]["block_cl_client_secret"]["action_cl_client_secret"].value,
     integrationClientId: view["state"]["values"]["block_cl_sales_client_id"]["action_cl_sales_client_id"].value
   };
-  console.log(user, slackId, formValuesObject);
 
   const credentialsData = await database
     .from("users")
@@ -369,35 +367,38 @@ app.view("callback_cl_modal_view", async ({ ack, body, view, client, logger }) =
 app.command("/cl", async ({ command, client, ack, say }) => {
   await ack();
 
+  const slackId = command.team_id || command.enterprise_id;
+  const config = await initConfig(slackId);
+
   if (command.text.startsWith("order ")) {
-    const resourceType = getOrderById(command.text.replace("order ", ""));
+    const resourceType = getOrderById(command.text.replace("order ", ""), config);
     getOrderResource(resourceType, command, client, say);
   } else if (command.text === "orders:p last" || command.text === "orders:last") {
-    const resourceType = getLastOrder("placed");
+    const resourceType = getLastOrder("placed", config);
     getOrderResource(resourceType, command, client, say);
   } else if (command.text === "orders:a last") {
-    const resourceType = getLastOrder("approved");
+    const resourceType = getLastOrder("approved", config);
     getOrderResource(resourceType, command, client, say);
   }
 
   if (command.text.startsWith("return ")) {
-    const resourceType = getReturnById(command.text.replace("return ", ""));
+    const resourceType = getReturnById(command.text.replace("return ", ""), config);
     getReturnResource(resourceType, command, client, say);
   } else if (command.text === "returns:r last" || command.text === "returns:last") {
-    const resourceType = getLastReturn("requested");
+    const resourceType = getLastReturn("requested", config);
     getReturnResource(resourceType, command, client, say);
   } else if (command.text === "returns:a last") {
-    const resourceType = getLastReturn("approved");
+    const resourceType = getLastReturn("approved", config);
     getReturnResource(resourceType, command, client, say);
   }
 
   if (command.text.startsWith("orders:today ")) {
-    const resourceType = getTodaysOrder(command.text.replace("orders:today ", ""));
+    const resourceType = getTodaysOrder(command.text.replace("orders:today ", ""), config);
     countOrders(resourceType, command, client, say);
   }
 
   if (command.text.startsWith("returns:today")) {
-    const resourceType = getTodaysReturn();
+    const resourceType = getTodaysReturn(config);
     countReturns(resourceType, command, client, say);
   }
 });

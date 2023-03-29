@@ -3,12 +3,8 @@ dotenv.config();
 
 import { getSalesChannelToken, getIntegrationToken } from "@commercelayer/js-auth";
 
-const BASE_ENDPOINT = `https://${process.env.CL_ORGANIZATION_SLUG}.commercelayer.io`;
-const CLIENT_ID = process.env.CL_CLIENT_ID;
-const CLIENT_ID_CHECKOUT = process.env.CL_CLIENT_ID_CHECKOUT;
-const CLIENT_SECRET = process.env.CL_CLIENT_SECRET;
-
-export const getToken = async () => {
+export const getToken = async (config) => {
+  const { BASE_ENDPOINT, CLIENT_ID, CLIENT_SECRET } = config;
   const auth = await getIntegrationToken({
     endpoint: BASE_ENDPOINT,
     clientId: CLIENT_ID,
@@ -17,7 +13,8 @@ export const getToken = async () => {
   return auth.accessToken;
 };
 
-export const getCheckoutToken = async (marketNumber: number) => {
+export const getCheckoutToken = async (config, marketNumber: number) => {
+  const { BASE_ENDPOINT, CLIENT_ID_CHECKOUT } = config;
   const auth = await getSalesChannelToken({
     endpoint: BASE_ENDPOINT,
     clientId: CLIENT_ID_CHECKOUT,

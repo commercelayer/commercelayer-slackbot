@@ -1,24 +1,15 @@
-import CommerceLayerPkg from "@commercelayer/sdk";
-import { getToken, getCheckoutToken } from "../utils/getToken.js";
-import { generateDate } from "../utils/parseDate.js";
+import { getCheckoutToken } from "../utils/getToken";
+import { ConfigOptions } from "../types/config";
+import { generateDate } from "../utils/parseDate";
 
-const organizationSlug = process.env.CL_ORGANIZATION_SLUG;
-const organizationMode = process.env.CL_ORGANIZATION_MODE;
-
-const token = await getToken();
-const CommerceLayer = CommerceLayerPkg.default;
-const cl = CommerceLayer({
-  organization: organizationSlug,
-  accessToken: token
-});
-
-const getOrderById = async (id: string) => {
+const getOrderById = async (id: string, config: ConfigOptions) => {
+  const { cl, organizationSlug, organizationMode } = config;
   try {
     const orders = await cl.orders.retrieve(id, {
       include: ["customer", "market", "shipments", "shipping_address", "billing_address", "payment_method"]
     });
 
-    const checkoutAccessToken = await getCheckoutToken(orders.market.number);
+    const checkoutAccessToken = await getCheckoutToken(config, orders.market.number);
 
     return { orders, organizationSlug, organizationMode, checkoutAccessToken };
   } catch (error) {
@@ -26,7 +17,8 @@ const getOrderById = async (id: string) => {
   }
 };
 
-const getLastOrder = async (status: string) => {
+const getLastOrder = async (status: string, config: ConfigOptions) => {
+  const { cl, organizationSlug, organizationMode } = config;
   try {
     const orders = (
       await cl.orders.list({
@@ -42,7 +34,8 @@ const getLastOrder = async (status: string) => {
   }
 };
 
-const getTodaysOrder = async (currency: string) => {
+const getTodaysOrder = async (currency: string, config: ConfigOptions) => {
+  const { cl, organizationSlug } = config;
   const currencyName = currency.toUpperCase();
 
   const allOrders = await cl.orders.list({
