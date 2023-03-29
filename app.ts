@@ -74,12 +74,18 @@ const app = new App({
     deleteInstallation: async (installQuery, logger) => {
       logger.info("DELETING SLACK INSTALLATION.....");
       if (installQuery.isEnterpriseInstall && installQuery.enterpriseId !== undefined) {
-        const { data, error } = await database.from("users").delete().eq("slack_id", installQuery.enterpriseId);
+        const { data, error } = await database
+          .from("users")
+          .delete()
+          .eq("slack_id", installQuery.enterpriseId);
         if (error) throw error;
         return data;
       }
       if (installQuery.teamId !== undefined) {
-        const { data, error } = await database.from("users").delete().eq("slack_id", installQuery.teamId);
+        const { data, error } = await database
+          .from("users")
+          .delete()
+          .eq("slack_id", installQuery.teamId);
         if (error) throw error;
         return data;
       }
@@ -117,7 +123,7 @@ const app = new App({
   }
 });
 
-// Listen to the app_home_opened Events API (App Home Tab)
+// Listen to the app_home_opened Events API (App Home Tab).
 app.event("app_home_opened", async ({ client, logger, payload }) => {
   const userId = payload.user;
 
@@ -183,127 +189,130 @@ app.event("app_home_opened", async ({ client, logger, payload }) => {
   }
 });
 
-// Listen to trigger button (modal with the configuration form)
-app.action({ action_id: "action_connect_cl_org", type: "block_actions" }, async ({ ack, body, client, logger }) => {
-  await ack();
+// Listen to trigger button (Configuration Form Modal).
+app.action(
+  { action_id: "action_connect_cl_org", type: "block_actions" },
+  async ({ ack, body, client, logger }) => {
+    await ack();
 
-  try {
-    const result = await client.views.open({
-      trigger_id: body.trigger_id,
-      view: {
-        type: "modal",
-        callback_id: "callback_cl_modal_view",
-        title: {
-          type: "plain_text",
-          text: "Configure CL Slackbot"
-        },
-        submit: {
-          type: "plain_text",
-          text: "Submit",
-          emoji: true
-        },
-        close: {
-          type: "plain_text",
-          text: "Cancel",
-          emoji: true
-        },
-        blocks: [
-          {
-            type: "input",
-            block_id: "block_cl_slug",
-            element: {
-              type: "plain_text_input",
-              action_id: "action_cl_slug"
-            },
-            label: {
-              type: "plain_text",
-              text: "Organization Slug"
-            },
-            hint: {
-              type: "plain_text",
-              text: "E.g., cake-store"
-            }
+    try {
+      const result = await client.views.open({
+        trigger_id: body.trigger_id,
+        view: {
+          type: "modal",
+          callback_id: "callback_cl_modal_view",
+          title: {
+            type: "plain_text",
+            text: "Configure CL Slackbot"
           },
-          {
-            type: "input",
-            block_id: "block_cl_mode",
-            element: {
-              type: "static_select",
-              options: [
-                {
-                  text: {
-                    type: "plain_text",
-                    text: "Test",
-                    emoji: true
+          submit: {
+            type: "plain_text",
+            text: "Submit",
+            emoji: true
+          },
+          close: {
+            type: "plain_text",
+            text: "Cancel",
+            emoji: true
+          },
+          blocks: [
+            {
+              type: "input",
+              block_id: "block_cl_slug",
+              element: {
+                type: "plain_text_input",
+                action_id: "action_cl_slug"
+              },
+              label: {
+                type: "plain_text",
+                text: "Organization Slug"
+              },
+              hint: {
+                type: "plain_text",
+                text: "E.g., cake-store"
+              }
+            },
+            {
+              type: "input",
+              block_id: "block_cl_mode",
+              element: {
+                type: "static_select",
+                options: [
+                  {
+                    text: {
+                      type: "plain_text",
+                      text: "Test",
+                      emoji: true
+                    },
+                    value: "test"
                   },
-                  value: "test"
-                },
-                {
-                  text: {
-                    type: "plain_text",
-                    text: "Live",
-                    emoji: true
-                  },
-                  value: "live"
-                }
-              ],
-              action_id: "action_cl_mode"
+                  {
+                    text: {
+                      type: "plain_text",
+                      text: "Live",
+                      emoji: true
+                    },
+                    value: "live"
+                  }
+                ],
+                action_id: "action_cl_mode"
+              },
+              label: {
+                type: "plain_text",
+                text: "Organization Mode"
+              }
             },
-            label: {
-              type: "plain_text",
-              text: "Organization Mode"
+            {
+              type: "input",
+              block_id: "block_cl_client_id",
+              element: {
+                type: "plain_text_input",
+                action_id: "action_cl_client_id"
+              },
+              label: {
+                type: "plain_text",
+                text: "Integration Client ID"
+              }
+            },
+            {
+              type: "input",
+              block_id: "block_cl_client_secret",
+              element: {
+                type: "plain_text_input",
+                action_id: "action_cl_client_secret"
+              },
+              label: {
+                type: "plain_text",
+                text: "Integration Client Secret"
+              }
+            },
+            {
+              type: "input",
+              block_id: "block_cl_sales_client_id",
+              element: {
+                type: "plain_text_input",
+                action_id: "action_cl_sales_client_id"
+              },
+              label: {
+                type: "plain_text",
+                text: "Sales Channel Client ID"
+              },
+              hint: {
+                type: "plain_text",
+                text: "This is needed for hosted-checkout"
+              }
             }
-          },
-          {
-            type: "input",
-            block_id: "block_cl_client_id",
-            element: {
-              type: "plain_text_input",
-              action_id: "action_cl_client_id"
-            },
-            label: {
-              type: "plain_text",
-              text: "Integration Client ID"
-            }
-          },
-          {
-            type: "input",
-            block_id: "block_cl_client_secret",
-            element: {
-              type: "plain_text_input",
-              action_id: "action_cl_client_secret"
-            },
-            label: {
-              type: "plain_text",
-              text: "Integration Client Secret"
-            }
-          },
-          {
-            type: "input",
-            block_id: "block_cl_sales_client_id",
-            element: {
-              type: "plain_text_input",
-              action_id: "action_cl_sales_client_id"
-            },
-            label: {
-              type: "plain_text",
-              text: "Sales Channel Client ID"
-            },
-            hint: {
-              type: "plain_text",
-              text: "This is needed for hosted-checkout"
-            }
-          }
-        ]
-      }
-    });
-    logger.info(result);
-  } catch (error) {
-    logger.error(error);
+          ]
+        }
+      });
+      logger.info(result);
+    } catch (error) {
+      logger.error(error);
+    }
   }
-});
+);
 
-// Handle  the view_submission request (form data)
+// Handle  the view_submission request (Configuration Form Data).
 app.view("callback_cl_modal_view", async ({ ack, body, view, client, logger }) => {
   await ack();
 
@@ -313,8 +322,10 @@ app.view("callback_cl_modal_view", async ({ ack, body, view, client, logger }) =
     slug: view["state"]["values"]["block_cl_slug"]["action_cl_slug"].value,
     mode: view["state"]["values"]["block_cl_mode"]["action_cl_mode"].selected_option.value,
     salesClientId: view["state"]["values"]["block_cl_client_id"]["action_cl_client_id"].value,
-    salesClientSecret: view["state"]["values"]["block_cl_client_secret"]["action_cl_client_secret"].value,
-    integrationClientId: view["state"]["values"]["block_cl_sales_client_id"]["action_cl_sales_client_id"].value
+    salesClientSecret:
+      view["state"]["values"]["block_cl_client_secret"]["action_cl_client_secret"].value,
+    integrationClientId:
+      view["state"]["values"]["block_cl_sales_client_id"]["action_cl_sales_client_id"].value
   };
 
   const credentialsData = await database
@@ -408,6 +419,7 @@ app.action("view_customer", ({ ack }) => ack());
 app.action("check_order", ({ ack }) => ack());
 app.action("view_return", ({ ack }) => ack());
 
+// Fetch all orders summary requests.
 const getOrderResource = async (resourceType, userInput, client, say) => {
   const triggerUser = await client.users.info({
     user: userInput.user_id
@@ -423,7 +435,11 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
             type: "mrkdwn",
             text: `> :warning: Command ${"`"}${userInput.command} ${
               userInput.text
-            }${"`"} failed with error: ${"```"}${JSON.stringify(customError("Order"), null, 2)}${"```"}`
+            }${"`"} failed with error: ${"```"}${JSON.stringify(
+              customError("Order"),
+              null,
+              2
+            )}${"```"}`
           }
         }
       ],
@@ -438,12 +454,18 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
             type: "mrkdwn",
             text: `:shopping_trolley: Order ${"`"}${resource.orders.id}${"`"} from the *${
               resource.orders.market.name
-            }* market has a total amount of *${resource.orders.formatted_subtotal_amount}* and was ${
+            }* market has a total amount of *${
+              resource.orders.formatted_subtotal_amount
+            }* and was ${
               resource.orders.placed_at !== null ? "placed" : "created"
             } on <!date^${formatTimestamp(
-              resource.orders.placed_at !== null ? resource.orders.placed_at : resource.orders.created_at
+              resource.orders.placed_at !== null
+                ? resource.orders.placed_at
+                : resource.orders.created_at
             )}^{date_long} at {time}|${
-              resource.orders.placed_at !== null ? resource.orders.placed_at : resource.orders.created_at
+              resource.orders.placed_at !== null
+                ? resource.orders.placed_at
+                : resource.orders.created_at
             }>. Here's a quick summary of the resource:`
           }
         },
@@ -455,7 +477,9 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
           fields: [
             {
               type: "mrkdwn",
-              text: `*Customer email:*\n${resource.orders.customer !== null ? resource.orders.customer.email : "null"}`
+              text: `*Customer email:*\n${
+                resource.orders.customer !== null ? resource.orders.customer.email : "null"
+              }`
             },
             {
               type: "mrkdwn",
@@ -500,7 +524,9 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
               type: "mrkdwn",
               text: `*Shipping address:*\n${
                 resource.orders.shipping_address !== null
-                  ? resource.orders.shipping_address.full_name + ", " + resource.orders.shipping_address.full_address
+                  ? resource.orders.shipping_address.full_name +
+                    ", " +
+                    resource.orders.shipping_address.full_address
                   : "null"
               }.`
             },
@@ -508,7 +534,9 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
               type: "mrkdwn",
               text: `*Billing address:*\n${
                 resource.orders.billing_address !== null
-                  ? resource.orders.billing_address.full_name + ", " + resource.orders.billing_address.full_address
+                  ? resource.orders.billing_address.full_name +
+                    ", " +
+                    resource.orders.billing_address.full_address
                   : "null"
               }.`
             }
@@ -520,7 +548,9 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
             {
               type: "mrkdwn",
               text: `*Payment method:*\n${
-                resource.orders.payment_method !== null ? resource.orders.payment_method.name : "null"
+                resource.orders.payment_method !== null
+                  ? resource.orders.payment_method.name
+                  : "null"
               }`
             },
             {
@@ -532,11 +562,15 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
                       if (resource.orders.shipments.length > 1) {
                         return `<https://dashboard.commercelayer.io/${
                           resource.organizationMode === "live" ? "live" : "test"
-                        }/${resource.organizationSlug}/resources/shipments/${shipment.id}|${shipment.number}>, `;
+                        }/${resource.organizationSlug}/resources/shipments/${shipment.id}|${
+                          shipment.number
+                        }>, `;
                       } else {
                         return `<https://dashboard.commercelayer.io/${
                           resource.organizationMode === "live" ? "live" : "test"
-                        }/${resource.organizationSlug}/resources/shipments/${shipment.id}|${shipment.number}>`;
+                        }/${resource.organizationSlug}/resources/shipments/${shipment.id}|${
+                          shipment.number
+                        }>`;
                       }
                     })
                   : "null"
@@ -569,9 +603,9 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
                   },
                   style: "primary",
                   value: "view_order",
-                  url: `https://dashboard.commercelayer.io/${resource.organizationMode === "live" ? "live" : "test"}/${
-                    resource.organizationSlug
-                  }/resources/orders/${resource.orders.id}`,
+                  url: `https://dashboard.commercelayer.io/${
+                    resource.organizationMode === "live" ? "live" : "test"
+                  }/${resource.organizationSlug}/resources/orders/${resource.orders.id}`,
                   action_id: "check_order"
                 },
             {
@@ -582,9 +616,11 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
                 emoji: true
               },
               value: "view_customer",
-              url: `https://dashboard.commercelayer.io/${resource.organizationMode === "live" ? "live" : "test"}/${
-                resource.organizationSlug
-              }/resources/customers/${resource.orders.customer !== null ? resource.orders.customer.id : "null"}`,
+              url: `https://dashboard.commercelayer.io/${
+                resource.organizationMode === "live" ? "live" : "test"
+              }/${resource.organizationSlug}/resources/customers/${
+                resource.orders.customer !== null ? resource.orders.customer.id : "null"
+              }`,
               action_id: "view_customer"
             }
           ]
@@ -598,7 +634,9 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
             {
               type: "image",
               image_url: `${triggerUser.user.profile.image_72}`,
-              alt_text: `${triggerUser.user.profile.display_name || triggerUser.user.profile.real_name}'s avatar`
+              alt_text: `${
+                triggerUser.user.profile.display_name || triggerUser.user.profile.real_name
+              }'s avatar`
             },
             {
               type: "mrkdwn",
@@ -622,6 +660,7 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
   }
 };
 
+// Fetch all returns summary requests.
 const getReturnResource = async (resourceType, userInput, client, say) => {
   const triggerUser = await client.users.info({
     user: userInput.user_id
@@ -637,7 +676,11 @@ const getReturnResource = async (resourceType, userInput, client, say) => {
             type: "mrkdwn",
             text: `> :warning: Command ${"`"}${userInput.command} ${
               userInput.text
-            }${"`"} failed with error: ${"```"}${JSON.stringify(customError("Return"), null, 2)}${"```"}`
+            }${"`"} failed with error: ${"```"}${JSON.stringify(
+              customError("Return"),
+              null,
+              2
+            )}${"```"}`
           }
         }
       ],
@@ -652,9 +695,13 @@ const getReturnResource = async (resourceType, userInput, client, say) => {
             type: "mrkdwn",
             text: `:shopping_trolley: Return ${"`"}${resource.returns.id}${"`"} from the *${
               resource.returns.order.country_code
-            }* market includes *${resource.returns.skus_count}* line items, is to be shipped to the *${
+            }* market includes *${
+              resource.returns.skus_count
+            }* line items, is to be shipped to the *${
               resource.returns.stock_location.name
-            }*, and was created on <!date^${formatTimestamp(resource.returns.created_at)}^{date_long} at {time}|${
+            }*, and was created on <!date^${formatTimestamp(
+              resource.returns.created_at
+            )}^{date_long} at {time}|${
               resource.returns.created_at
             }>. Here's a quick summary of the resource:`
           }
@@ -701,7 +748,9 @@ const getReturnResource = async (resourceType, userInput, client, say) => {
               type: "mrkdwn",
               text: `*Origin address:*\n${
                 resource.returns.origin_address !== null
-                  ? resource.returns.origin_address.full_name + ", " + resource.returns.origin_address.full_address
+                  ? resource.returns.origin_address.full_name +
+                    ", " +
+                    resource.returns.origin_address.full_address
                   : "null"
               }.`
             },
@@ -729,9 +778,9 @@ const getReturnResource = async (resourceType, userInput, client, say) => {
               },
               style: "primary",
               value: "view_return",
-              url: `https://dashboard.commercelayer.io/${resource.organizationMode === "live" ? "live" : "test"}/${
-                resource.organizationSlug
-              }/resources/returns/${resource.returns.id}`,
+              url: `https://dashboard.commercelayer.io/${
+                resource.organizationMode === "live" ? "live" : "test"
+              }/${resource.organizationSlug}/resources/returns/${resource.returns.id}`,
               action_id: "view_return"
             },
             {
@@ -742,9 +791,11 @@ const getReturnResource = async (resourceType, userInput, client, say) => {
                 emoji: true
               },
               value: "view_customer",
-              url: `https://dashboard.commercelayer.io/${resource.organizationMode === "live" ? "live" : "test"}/${
-                resource.organizationSlug
-              }/resources/customers/${resource.returns.customer !== null ? resource.returns.customer.id : "null"}`,
+              url: `https://dashboard.commercelayer.io/${
+                resource.organizationMode === "live" ? "live" : "test"
+              }/${resource.organizationSlug}/resources/customers/${
+                resource.returns.customer !== null ? resource.returns.customer.id : "null"
+              }`,
               action_id: "view_customer"
             }
           ]
@@ -758,7 +809,9 @@ const getReturnResource = async (resourceType, userInput, client, say) => {
             {
               type: "image",
               image_url: `${triggerUser.user.profile.image_72}`,
-              alt_text: `${triggerUser.user.profile.display_name || triggerUser.user.profile.real_name}'s avatar`
+              alt_text: `${
+                triggerUser.user.profile.display_name || triggerUser.user.profile.real_name
+              }'s avatar`
             },
             {
               type: "mrkdwn",
@@ -773,13 +826,14 @@ const getReturnResource = async (resourceType, userInput, client, say) => {
         resource.returns.order.country_code
       }* market includes *${resource.returns.skus_count}* line items, is to be shipped to the *${
         resource.returns.stock_location.name
-      }*, and was created on <!date^${formatTimestamp(resource.returns.created_at)}^{date_long} at {time}|${
+      }*, and was created on <!date^${formatTimestamp(
         resource.returns.created_at
-      }>.`
+      )}^{date_long} at {time}|${resource.returns.created_at}>.`
     });
   }
 };
 
+// Fetch all orders count requests.
 const countOrders = async (resourceType, userInput, client, say) => {
   const triggerUser = await client.users.info({
     user: userInput.user_id
@@ -825,7 +879,9 @@ const countOrders = async (resourceType, userInput, client, say) => {
               {
                 type: "image",
                 image_url: `${triggerUser.user.profile.image_72}`,
-                alt_text: `${triggerUser.user.profile.display_name || triggerUser.user.profile.real_name}'s avatar`
+                alt_text: `${
+                  triggerUser.user.profile.display_name || triggerUser.user.profile.real_name
+                }'s avatar`
               },
               {
                 type: "mrkdwn",
@@ -857,6 +913,7 @@ const countOrders = async (resourceType, userInput, client, say) => {
     });
 };
 
+// Fetch all returns count requests.
 const countReturns = async (resourceType, userInput, client, say) => {
   const triggerUser = await client.users.info({
     user: userInput.user_id
@@ -890,7 +947,9 @@ const countReturns = async (resourceType, userInput, client, say) => {
               {
                 type: "image",
                 image_url: `${triggerUser.user.profile.image_72}`,
-                alt_text: `${triggerUser.user.profile.display_name || triggerUser.user.profile.real_name}'s avatar`
+                alt_text: `${
+                  triggerUser.user.profile.display_name || triggerUser.user.profile.real_name
+                }'s avatar`
               },
               {
                 type: "mrkdwn",
