@@ -39,11 +39,11 @@ The official Commerce Layer Slackbot for orders and returns summaries.
 
 The quickest way to get up and running is to use the "Add to Slack" button below to install the Slack bot into your Slack workspace (coming soon!). Alternatively you can [install from the Slack app directory](#) (coming soon!). After a successful installation, you will configure the bot by providing some required Commerce Layer application credentials.
 
-<center>
+<div align="center">
     <a href="#" target="_blank" rel="noopener noreferrer">
         <img alt="Add to Slack" height="40" width="139" src="https://platform.slack-edge.com/img/add_to_slack.png" srcSet="https://platform.slack-edge.com/img/add_to_slack.png 1x, https://platform.slack-edge.com/img/add_to_slack@2x.png 2x" />
     </a>
-</center>
+</div>
 
 ## Configuration Guide
 
@@ -137,7 +137,9 @@ If for any reason you want to set up your own server (most likely because you wa
 > **Note**
 >
 > For all Commerce Layer credentials, see: <https://docs.commercelayer.io/core/applications>.
+>
 > For all Slack credentials, see: <https://api.slack.com/authentication>.
+>
 > For all Supabase credentials, see: <https://supabase.com/docs/guides/database>.
 
 6. Run the command below to install the required dependencies:
