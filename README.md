@@ -132,7 +132,7 @@ If for any reason you want to set up your own server (most likely because you wa
 | `CL_CLIENT_ID_CHECKOUT`           | Your Commerce Layer sales channel application client ID.                                                       |
 | `CL_CLIENT_SECRET`                | Your Commerce Layer integration application client secret.                                                   |
 | `SUPABASE_URL`                    | The API URL for your Supabase project (`https://your-project-id.supabase.co`).                                     |
-| `SUPABASE_ANON_KEY`               | The anon key used when a user is not logged in for "anonymous access" during PostgREST API rquests.               |
+| `SUPABASE_ANON_KEY`               | The anon key used when a user is not logged in for "anonymous access" during PostgREST API requests.               |
 
 > **Note**
 >
@@ -160,13 +160,15 @@ npm run build
 npm run start
 ```
 
-9. Run the command below to start a [Ngrok](https://ngrok.com/download) server on port 3000; this will generate a URL (like <https://f09d-2a09-bac5.eu.ngrok.io>) proxied to <http://localhost:3000>.
+9. Run the command below to start a [Ngrok](https://ngrok.com/download) server on port 3000; this will generate a URL (like `https://f09d-2a09-bac5.eu.ngrok.io`) proxied to `http://localhost:3000`.
 
 ```bash
 npm run dev
 ```
 
 10. Update your Slack app accordingly with the generated URL above or use these [manifest (JSON or YAML)](./manifests/) files as a template to easily [configure your Slack app](https://api.slack.com/reference/manifests).
+
+<br />
 
 Now you can procced to do your thing!
 
@@ -198,4 +200,4 @@ This repository is published under the [MIT](LICENSE) license.
 
 ---
 
-Want to learn more about how we built this project and how you can build yours? Then you should read [this article first](#) and [this next]() on our blog.
+Want to learn more about how we built this project and how you can build yours? Then you should read [this article first](https://commercelayer.io/blog/how-we-built-the-commerce-layer-slackbot-with-nodejs-and-bolt) and [this next]() on our blog.
