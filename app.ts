@@ -171,7 +171,7 @@ app.event("app_home_opened", async ({ client, logger, context, payload }) => {
             type: "section",
             text: {
               type: "mrkdwn",
-              text: "The *Commerce Layer App* let's you get orders and returns summaries and checkout `pending` orders from all markets in your organization. You can see all the features and available slash commands in the <https://github.com/commercelayer/commercelayer-slackbot#bot-features|public documentation>."
+              text: "The *Commerce Layer App* lets you get orders and returns summaries and checkout `pending` orders from all markets in your organization. You can see all the features and available slash commands in the <https://github.com/commercelayer/commercelayer-slackbot#bot-features|public documentation>."
             }
           },
           {
