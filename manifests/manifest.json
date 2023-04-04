@@ -48,10 +48,12 @@
       "request_url": "https://xxx-yyy-zzz.eu.ngrok.io/slack/events",
       "bot_events": [
         "app_home_opened",
+        "app_uninstalled",
         "message.channels",
         "message.groups",
         "message.im",
-        "message.mpim"
+        "message.mpim",
+        "tokens_revoked"
       ]
     },
     "interactivity": {

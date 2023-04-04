@@ -123,12 +123,25 @@ const app = new App({
   }
 });
 
-// Listen to the app_home_opened Events API (App Home Tab).
+// Listen to the app_uninstalled and tokens_revoked events.
+// Temporal delete implementation until Bolt supports this natively.
+// See: https://github.com/slackapi/bolt-js/issues/1203.
+app.event("app_uninstalled" || "tokens_revoked", async ({ logger, context }) => {
+  logger.info("DELETING SLACK INSTALLATION.....");
+  const { data, error } = await database
+    .from("users")
+    .delete()
+    .eq("slack_id", context.teamId || context.enterpriseId);
+  if (error) logger.error("Failed to delete installation.", error);
+  return data;
+});
+
+// Listen to the app_home_opened event (App Home Tab).
 app.event("app_home_opened", async ({ client, logger, payload }) => {
   const userId = payload.user;
 
   try {
-    const result = await client.views.publish({
+    await client.views.publish({
       user_id: userId,
       view: {
         type: "home",
@@ -144,25 +157,20 @@ app.event("app_home_opened", async ({ client, logger, payload }) => {
             type: "divider"
           },
           {
-            type: "section",
-            text: {
-              type: "mrkdwn",
-              text: "The *Commerce Layer App* let's you get orders and returns summaries from all markets in your organization. Here are a few things you can do:"
-            }
+            type: "image",
+            image_url:
+              "https://i1.wp.com/thetempest.co/wp-content/uploads/2017/08/The-wise-words-of-Michael-Scott-Imgur-2.jpg?w=1024&ssl=1",
+            alt_text: "GIF of a man dancing happily"
           },
           {
             type: "section",
             text: {
               type: "mrkdwn",
-              text: "• Fetch the summary of an order resource (`/cl order [order ID]`).\n • Fetch the summary of the last placed order resource in your organization (`/cl orders:last`).\n • Fetch the summary of the last approved order resource in your organization (`/cl orders:a last`).\n • Fetch the current total number and revenue of orders today (`/cl orders:today [currency code]`).\n • Fetch the summary of a return resource (`/cl return [return ID]`).\n • And much more..."
+              text: "The *Commerce Layer App* let's you get orders and returns summaries from all markets in your organization. You can see all the features and commands available in <https://github.com/commercelayer/commercelayer-slackbot|the documentation>. To get started, we need you to connect your organization by providing some credentials."
             }
           },
           {
-            type: "section",
-            text: {
-              type: "mrkdwn",
-              text: "But before you can do all these amazing things, we need you to connect your organization by providing some credentials."
-            }
+            type: "divider"
           },
           {
             type: "actions",
@@ -183,20 +191,19 @@ app.event("app_home_opened", async ({ client, logger, payload }) => {
         ]
       }
     });
-    logger.info(result);
   } catch (error) {
     logger.error(error);
   }
 });
 
-// Listen to trigger button (Configuration Form Modal).
+// Listen to the trigger button (Configuration Form Modal).
 app.action(
   { action_id: "action_connect_cl_org", type: "block_actions" },
   async ({ ack, body, client, logger }) => {
     await ack();
 
     try {
-      const result = await client.views.open({
+      await client.views.open({
         trigger_id: body.trigger_id,
         view: {
           type: "modal",
@@ -272,6 +279,10 @@ app.action(
               label: {
                 type: "plain_text",
                 text: "Integration Client ID"
+              },
+              hint: {
+                type: "plain_text",
+                text: "This is needed for API requests."
               }
             },
             {
@@ -299,20 +310,19 @@ app.action(
               },
               hint: {
                 type: "plain_text",
-                text: "This is needed for hosted-checkout"
+                text: "This is needed for hosted-checkout."
               }
             }
           ]
         }
       });
-      logger.info(result);
     } catch (error) {
       logger.error(error);
     }
   }
 );
 
-// Handle  the view_submission request (Configuration Form Data).
+// Handle the view_submission request (Configuration Form Data).
 app.view("callback_cl_modal_view", async ({ ack, body, view, client, logger }) => {
   await ack();
 
