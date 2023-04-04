@@ -137,8 +137,14 @@ app.event("app_uninstalled" || "tokens_revoked", async ({ logger, context }) => 
 });
 
 // Listen to the app_home_opened event (App Home Tab).
-app.event("app_home_opened", async ({ client, logger, payload }) => {
+app.event("app_home_opened", async ({ client, logger, context, payload }) => {
   const userId = payload.user;
+  const { data, error } = await database
+    .from("users")
+    .select("slack_installation_store")
+    .eq("slack_id", context.teamId || context.enterpriseId);
+  if (error) throw error;
+  const adminUserId = data[0].slack_installation_store.user.id;
 
   try {
     await client.views.publish({
@@ -150,44 +156,53 @@ app.event("app_home_opened", async ({ client, logger, payload }) => {
             type: "section",
             text: {
               type: "mrkdwn",
-              text: `*Welcome, <@${userId}>! :wave: :wink:*`
+              text: `*Welcome, <@${userId}>! :wave:*`
             }
           },
           {
-            type: "divider"
+            type: "image",
+            image_url: "https://data.commercelayer.app/assets/images/banners/violet-half.jpg",
+            alt_text: "Commerce Layer banner image."
           },
           {
-            type: "image",
-            image_url:
-              "https://i1.wp.com/thetempest.co/wp-content/uploads/2017/08/The-wise-words-of-Michael-Scott-Imgur-2.jpg?w=1024&ssl=1",
-            alt_text: "GIF of a man dancing happily"
+            type: "divider"
           },
           {
             type: "section",
             text: {
               type: "mrkdwn",
-              text: "The *Commerce Layer App* let's you get orders and returns summaries from all markets in your organization. You can see all the features and commands available in <https://github.com/commercelayer/commercelayer-slackbot|the documentation>. To get started, we need you to connect your organization by providing some credentials."
+              text: "The *Commerce Layer App* let's you get orders and returns summaries and checkout `pending` orders from all markets in your organization. You can see all the features and available slash commands in the <https://github.com/commercelayer/commercelayer-slackbot#bot-features|public documentation>."
             }
           },
           {
             type: "divider"
           },
-          {
-            type: "actions",
-            elements: [
-              {
-                type: "button",
+          userId === adminUserId
+            ? {
+                type: "section",
                 text: {
-                  type: "plain_text",
-                  text: "Connect organization",
-                  emoji: true
+                  type: "mrkdwn",
+                  text: "To get started, we need you to connect your organization by providing some credentials."
                 },
-                style: "primary",
-                value: "cl_org",
-                action_id: "action_connect_cl_org"
+                accessory: {
+                  type: "button",
+                  text: {
+                    type: "plain_text",
+                    text: "Connect organization",
+                    emoji: true
+                  },
+                  style: "primary",
+                  value: "cl_org",
+                  action_id: "action_connect_cl_org"
+                }
               }
-            ]
-          }
+            : {
+                type: "section",
+                text: {
+                  type: "mrkdwn",
+                  text: `To get started, ask the workspace admin to configure this app if they haven't yet :wink:.`
+                }
+              }
         ]
       }
     });
