@@ -196,4 +196,4 @@ This repository is published under the [MIT](LICENSE) license.
 
 ---
 
-Want to learn more about how we built this project and how you can build yours? Then you should read [this article first](https://commercelayer.io/blog/how-we-built-the-commerce-layer-slackbot-with-nodejs-and-bolt) and [this next]() on our blog.
+Want to learn more about how we built this project and how you can build yours? Then you should read [this article first](https://commercelayer.io/blog/how-we-built-the-commerce-layer-slackbot-with-node-js-and-slack-api) and [this next]() on our blog.
