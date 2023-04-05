@@ -9,7 +9,7 @@
     "build": "npx tsc -w",
     "test": "",
     "prettier": "prettier --config .prettierrc --write .",
-    "gen:sbTypes": "cd src/database && npx supabase start && npx supabase gen types typescript --local > supabase.types.ts"
+    "gen:sbTypes": "cd src/database && npx supabase start && npx supabase gen types typescript --local > types/supabase.types.ts"
   },
   "repository": {
     "type": "git",
@@ -18,7 +18,9 @@
   "keywords": [
     "commercelayer",
     "slack",
+    "slack api",
     "slackbot",
+    "boltjs",
     "typescript",
     "nodejs"
   ],

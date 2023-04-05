@@ -1,12 +1,19 @@
 import { getCheckoutToken } from "../utils/getToken";
-import { ConfigOptions } from "../types/config";
 import { generateDate } from "../utils/parseDate";
+import { ConfigOptions } from "../types/config";
 
 const getOrderById = async (id: string, config: ConfigOptions) => {
   const { cl, organizationSlug, organizationMode } = config;
   try {
     const orders = await cl.orders.retrieve(id, {
-      include: ["customer", "market", "shipments", "shipping_address", "billing_address", "payment_method"]
+      include: [
+        "customer",
+        "market",
+        "shipments",
+        "shipping_address",
+        "billing_address",
+        "payment_method"
+      ]
     });
 
     const checkoutAccessToken = await getCheckoutToken(config, orders.market.number);
@@ -22,7 +29,14 @@ const getLastOrder = async (status: string, config: ConfigOptions) => {
   try {
     const orders = (
       await cl.orders.list({
-        include: ["customer", "market", "shipments", "shipping_address", "billing_address", "payment_method"],
+        include: [
+          "customer",
+          "market",
+          "shipments",
+          "shipping_address",
+          "billing_address",
+          "payment_method"
+        ],
         filters: { status_eq: `${status}` },
         sort: status === "placed" ? { placed_at: "desc" } : { approved_at: "desc" }
       })

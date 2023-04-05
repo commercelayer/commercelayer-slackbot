@@ -1,5 +1,5 @@
-import { ConfigOptions } from "../types/config";
 import { generateDate } from "../utils/parseDate";
+import { ConfigOptions } from "../types/config";
 
 const getReturnById = async (id: string, config: ConfigOptions) => {
   const { cl, organizationSlug, organizationMode } = config;
