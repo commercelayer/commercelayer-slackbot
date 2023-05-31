@@ -1,13 +1,14 @@
 import * as dotenv from "dotenv";
 dotenv.config();
 
-import { getSalesChannelToken, getIntegrationToken } from "@commercelayer/js-auth";
+import { authentication } from "@commercelayer/js-auth";
 import { ConfigOptions } from "../types/config";
 
+// Note: This function is not used in the codebase.
 export const getToken = async (config: ConfigOptions) => {
-  const { BASE_ENDPOINT, CLIENT_ID, CLIENT_SECRET } = config;
-  const auth = await getIntegrationToken({
-    endpoint: BASE_ENDPOINT,
+  const { organizationSlug, CLIENT_ID, CLIENT_SECRET } = config;
+  const auth = await authentication("client_credentials", {
+    slug: organizationSlug,
     clientId: CLIENT_ID,
     clientSecret: CLIENT_SECRET
   });
@@ -15,9 +16,9 @@ export const getToken = async (config: ConfigOptions) => {
 };
 
 export const getCheckoutToken = async (config: ConfigOptions, marketNumber: number) => {
-  const { BASE_ENDPOINT, CLIENT_ID_CHECKOUT } = config;
-  const auth = await getSalesChannelToken({
-    endpoint: BASE_ENDPOINT,
+  const { organizationSlug, CLIENT_ID_CHECKOUT } = config;
+  const auth = await authentication("client_credentials", {
+    slug: organizationSlug,
     clientId: CLIENT_ID_CHECKOUT,
     scope: `market:${marketNumber}`
   });

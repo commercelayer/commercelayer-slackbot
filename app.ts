@@ -1,16 +1,18 @@
 import * as dotenv from "dotenv";
 dotenv.config();
 
-import { App, LogLevel } from "@slack/bolt";
+import { App, ExpressReceiver, LogLevel } from "@slack/bolt";
+import { authentication } from "@commercelayer/js-auth";
 import { getOrderById, getLastOrder, getTodaysOrder } from "./src/orders/getOrders";
 import { getReturnById, getLastReturn, getTodaysReturn } from "./src/returns/getReturns";
 import { database } from "./src/database/supabaseClient";
 import { customError } from "./src/utils/customError";
+import { toTitleCase } from "./src/utils/parseText";
 import { formatTimestamp } from "./src/utils/parseDate";
 import { initConfig } from "./src/utils/config";
+import { ConfigOptions } from "./src/types/config";
 
-const app = new App({
-  logLevel: LogLevel.DEBUG,
+const receiver = new ExpressReceiver({
   clientId: process.env.SLACK_CLIENT_ID,
   clientSecret: process.env.SLACK_CLIENT_SECRET,
   signingSecret: process.env.SLACK_SIGNING_SECRET,
@@ -123,87 +125,102 @@ const app = new App({
   }
 });
 
-// Listen to the app_uninstalled and tokens_revoked events.
-// Temporal delete implementation until Bolt supports this natively.
-// See: https://github.com/slackapi/bolt-js/issues/1203.
-app.event("app_uninstalled" || "tokens_revoked", async ({ logger, context }) => {
-  logger.info("DELETING SLACK INSTALLATION.....");
-  const { data, error } = await database
-    .from("users")
-    .delete()
-    .eq("slack_id", context.teamId || context.enterpriseId);
-  if (error) logger.error("Failed to delete installation.", error);
-  return data;
+const app = new App({
+  receiver,
+  logLevel: LogLevel.DEBUG
 });
+
+let slackId: string;
 
 // Listen to the app_home_opened event (App Home Tab).
 app.event("app_home_opened", async ({ client, logger, context, payload }) => {
-  const userId = payload.user;
+  slackId = context.teamId || context.enterpriseId;
   const { data, error } = await database
     .from("users")
-    .select("slack_installation_store")
-    .eq("slack_id", context.teamId || context.enterpriseId);
+    .select("slack_installation_store, cl_app_credentials")
+    .eq("slack_id", slackId);
   if (error) throw error;
+  const userId = payload.user;
   const adminUserId = data[0].slack_installation_store.user.id;
+  const isClAuth = data[0].cl_app_credentials !== null;
+
+  let config: ConfigOptions;
+  let authLink: string;
+  if (isClAuth) {
+    config = await initConfig(slackId);
+    authLink = `https://dashboard.commercelayer.io/oauth/authorize?client_id=${config.CLIENT_ID}&redirect_uri=${config.REDIRECT_URI}&response_type=code`;
+  }
 
   try {
     await client.views.publish({
       user_id: userId,
       view: {
         type: "home",
-        blocks: [
-          {
-            type: "section",
-            text: {
-              type: "mrkdwn",
-              text: `*Welcome, <@${userId}>! :wave:*`
-            }
-          },
-          {
-            type: "image",
-            image_url: "https://data.commercelayer.app/assets/images/banners/violet-half.jpg",
-            alt_text: "Commerce Layer banner image."
-          },
-          {
-            type: "divider"
-          },
-          {
-            type: "section",
-            text: {
-              type: "mrkdwn",
-              text: "The *Commerce Layer App* lets you get orders and returns summaries and checkout `pending` orders from all markets in your organization. You can see all the features and available slash commands in the <https://github.com/commercelayer/commercelayer-slackbot#bot-features|public documentation>."
-            }
-          },
-          {
-            type: "divider"
-          },
+        blocks:
           userId === adminUserId
-            ? {
-                type: "section",
-                text: {
-                  type: "mrkdwn",
-                  text: "To get started, we need you to connect your organization by providing some credentials."
+            ? [
+                {
+                  type: "image",
+                  image_url: "https://data.commercelayer.app/assets/images/banners/violet-half.jpg",
+                  alt_text: "Commerce Layer banner image."
                 },
-                accessory: {
-                  type: "button",
+                {
+                  type: "divider"
+                },
+                {
+                  type: "section",
                   text: {
-                    type: "plain_text",
-                    text: "Connect organization",
-                    emoji: true
+                    type: "mrkdwn",
+                    text: `:one: *Welcome, <@${userId}> :wave:*. To get started, you need to connect your organization by providing some app credentials.`
                   },
-                  style: "primary",
-                  value: "cl_org",
-                  action_id: "action_connect_cl_org"
+                  accessory: {
+                    type: "button",
+                    text: {
+                      type: "plain_text",
+                      text: isClAuth ? "Update App Credentials" : "Configure App Credentials",
+                      emoji: true
+                    },
+                    style: "primary",
+                    value: "cl_connect_org",
+                    action_id: "action_cl_connect_org"
+                  }
+                },
+                {
+                  type: "section",
+                  text: {
+                    type: "mrkdwn",
+                    text: `:two: Next, click the button below to authorize the app with Commerce Layer.`
+                  },
+                  accessory: {
+                    type: "button",
+                    text: {
+                      type: "plain_text",
+                      text: "Auth with Commerce Layer",
+                      emoji: true
+                    },
+                    value: "cl_auth_org",
+                    url: authLink,
+                    action_id: "cl_auth_org"
+                  }
                 }
-              }
-            : {
-                type: "section",
-                text: {
-                  type: "mrkdwn",
-                  text: `To get started, ask the workspace admin to configure this app if they haven't yet :wink:.`
+              ]
+            : [
+                {
+                  type: "image",
+                  image_url: "https://data.commercelayer.app/assets/images/banners/violet-half.jpg",
+                  alt_text: "Commerce Layer banner image."
+                },
+                {
+                  type: "divider"
+                },
+                {
+                  type: "section",
+                  text: {
+                    type: "mrkdwn",
+                    text: `To get started, ask the workspace admin to configure this app if they haven't yet :wink:.`
+                  }
                 }
-              }
-        ]
+              ]
       }
     });
   } catch (error) {
@@ -213,9 +230,19 @@ app.event("app_home_opened", async ({ client, logger, context, payload }) => {
 
 // Listen to the trigger button (Configuration Form Modal).
 app.action(
-  { action_id: "action_connect_cl_org", type: "block_actions" },
+  { action_id: "action_cl_connect_org", type: "block_actions" },
   async ({ ack, body, client, logger }) => {
     await ack();
+
+    const config = await initConfig(slackId);
+    const { organizationMode, BASE_ENDPOINT, CLIENT_ID, CLIENT_SECRET, CLIENT_ID_CHECKOUT } =
+      config;
+    const { data, error } = await database
+      .from("users")
+      .select("slack_installation_store, cl_app_credentials")
+      .eq("slack_id", slackId);
+    if (error) throw error;
+    const isClAuth = data[0].cl_app_credentials !== null;
 
     try {
       await client.views.open({
@@ -240,25 +267,18 @@ app.action(
           blocks: [
             {
               type: "input",
-              block_id: "block_cl_slug",
-              element: {
-                type: "plain_text_input",
-                action_id: "action_cl_slug"
-              },
-              label: {
-                type: "plain_text",
-                text: "Organization Slug"
-              },
-              hint: {
-                type: "plain_text",
-                text: "E.g., cake-store"
-              }
-            },
-            {
-              type: "input",
               block_id: "block_cl_mode",
               element: {
                 type: "static_select",
+                action_id: "action_cl_mode",
+                initial_option: {
+                  text: {
+                    type: "plain_text",
+                    text: isClAuth ? toTitleCase(organizationMode) : "Test",
+                    emoji: true
+                  },
+                  value: isClAuth ? organizationMode : "test"
+                },
                 options: [
                   {
                     text: {
@@ -276,8 +296,7 @@ app.action(
                     },
                     value: "live"
                   }
-                ],
-                action_id: "action_cl_mode"
+                ]
               },
               label: {
                 type: "plain_text",
@@ -286,14 +305,28 @@ app.action(
             },
             {
               type: "input",
-              block_id: "block_cl_client_id",
+              block_id: "block_cl_endpoint",
               element: {
                 type: "plain_text_input",
-                action_id: "action_cl_client_id"
+                action_id: "action_cl_endpoint",
+                initial_value: isClAuth ? BASE_ENDPOINT : ""
               },
               label: {
                 type: "plain_text",
-                text: "Integration Client ID"
+                text: "Base Endpoint"
+              }
+            },
+            {
+              type: "input",
+              block_id: "block_cl_client_id",
+              element: {
+                type: "plain_text_input",
+                action_id: "action_cl_client_id",
+                initial_value: isClAuth ? CLIENT_ID : ""
+              },
+              label: {
+                type: "plain_text",
+                text: "Webapp Client ID"
               },
               hint: {
                 type: "plain_text",
@@ -305,23 +338,29 @@ app.action(
               block_id: "block_cl_client_secret",
               element: {
                 type: "plain_text_input",
-                action_id: "action_cl_client_secret"
+                action_id: "action_cl_client_secret",
+                initial_value: isClAuth ? CLIENT_SECRET : ""
               },
               label: {
                 type: "plain_text",
-                text: "Integration Client Secret"
+                text: "Webapp Client Secret"
+              },
+              hint: {
+                type: "plain_text",
+                text: "This is needed for initial access token generation and will deleted afterwards."
               }
             },
             {
               type: "input",
-              block_id: "block_cl_sales_client_id",
+              block_id: "block_cl_int_client_id",
               element: {
                 type: "plain_text_input",
-                action_id: "action_cl_sales_client_id"
+                action_id: "action_cl_int_client_id",
+                initial_value: isClAuth ? CLIENT_ID_CHECKOUT : ""
               },
               label: {
                 type: "plain_text",
-                text: "Sales Channel Client ID"
+                text: "Integration Client ID"
               },
               hint: {
                 type: "plain_text",
@@ -344,13 +383,16 @@ app.view("callback_cl_modal_view", async ({ ack, body, view, client, logger }) =
   const user = body.user.id;
   const slackId = body.team.id || body.enterprise.id;
   const formValuesObject = {
-    slug: view["state"]["values"]["block_cl_slug"]["action_cl_slug"].value,
     mode: view["state"]["values"]["block_cl_mode"]["action_cl_mode"].selected_option.value,
-    salesClientId: view["state"]["values"]["block_cl_client_id"]["action_cl_client_id"].value,
-    salesClientSecret:
+    endpoint: view["state"]["values"]["block_cl_endpoint"]["action_cl_endpoint"].value,
+    clientId: view["state"]["values"]["block_cl_client_id"]["action_cl_client_id"].value,
+    clientSecret:
       view["state"]["values"]["block_cl_client_secret"]["action_cl_client_secret"].value,
     integrationClientId:
-      view["state"]["values"]["block_cl_sales_client_id"]["action_cl_sales_client_id"].value
+      view["state"]["values"]["block_cl_int_client_id"]["action_cl_int_client_id"].value,
+    accessToken: ".",
+    refreshToken: ".",
+    expires: "."
   };
 
   const credentialsData = await database
@@ -370,7 +412,7 @@ app.view("callback_cl_modal_view", async ({ ack, body, view, client, logger }) =
                 type: "section",
                 text: {
                   type: "plain_text",
-                  text: ":white_check_mark: Your organization credentials was submitted successfully."
+                  text: ":white_check_mark: Your organization app credentials was submitted successfully."
                 }
               },
               {
@@ -384,7 +426,7 @@ app.view("callback_cl_modal_view", async ({ ack, body, view, client, logger }) =
                 type: "section",
                 text: {
                   type: "plain_text",
-                  text: ":warning: There was an error with your organization credentials submission. Please try again."
+                  text: ":warning: There was an error with your organization app credentials submission. Please try again."
                 }
               },
               {
@@ -398,6 +440,79 @@ app.view("callback_cl_modal_view", async ({ ack, body, view, client, logger }) =
     logger.error(error);
   }
 });
+
+// Callback endpoint for Commerce Layer Webapp authorization.
+receiver.router.get("/callback", async (req, res) => {
+  const config = await initConfig(slackId);
+  const authorizationCode = req.query.code as string;
+  const {
+    organizationMode,
+    organizationSlug,
+    BASE_ENDPOINT,
+    CLIENT_ID,
+    CLIENT_SECRET,
+    CLIENT_ID_CHECKOUT,
+    REDIRECT_URI
+  } = config;
+  console.log(config);
+  await authentication("authorization_code", {
+    clientId: CLIENT_ID,
+    clientSecret: CLIENT_SECRET,
+    slug: organizationSlug,
+    code: authorizationCode,
+    callbackUrl: REDIRECT_URI
+  })
+    .then(async (token) => {
+      console.log(token);
+      await database
+        .from("users")
+        .update({
+          cl_app_credentials: {
+            mode: organizationMode,
+            endpoint: BASE_ENDPOINT,
+            clientId: CLIENT_ID,
+            integrationClientId: CLIENT_ID_CHECKOUT,
+            accessToken: token.accessToken,
+            refreshToken: token.refreshToken,
+            expires: token.expires
+          }
+        })
+        .eq("slack_id", slackId);
+
+      res.status(200).json({
+        message: "Authorization succesful!",
+        action: "You can close this tab now.",
+        code: req.query.code
+      });
+    })
+    .catch((error) => {
+      res.status(401).json({
+        message: "Oops, Something Went Wrong!",
+        action: `Please try again or contact the app owner (reason: ${error.code}))`,
+        error: error
+      });
+    });
+});
+
+// Listen to the app_uninstalled and tokens_revoked events.
+// Temporal delete implementation until Bolt supports this natively.
+// See: https://github.com/slackapi/bolt-js/issues/1203.
+app.event("app_uninstalled" || "tokens_revoked", async ({ logger, context }) => {
+  logger.info("DELETING SLACK INSTALLATION.....");
+  const { data, error } = await database
+    .from("users")
+    .delete()
+    .eq("slack_id", context.teamId || context.enterpriseId);
+  if (error) logger.error("Failed to delete installation.", error);
+  return data;
+});
+
+// Respond with 200 OK to buttons with links.
+// Reason: all Slack buttons dispatch a request.
+app.action("cl_auth_org", ({ ack }) => ack());
+app.action("view_customer", ({ ack }) => ack());
+app.action("check_order", ({ ack }) => ack());
+app.action("view_return", ({ ack }) => ack());
 
 // Acknowledge and respond to all requests to the /cl slash command.
 app.command("/cl", async ({ command, client, ack, say }) => {
@@ -438,11 +553,6 @@ app.command("/cl", async ({ command, client, ack, say }) => {
     countReturns(resourceType, command, client, say);
   }
 });
-
-// Respond with 200 OK since all Slack buttons dispatch a request.
-app.action("view_customer", ({ ack }) => ack());
-app.action("check_order", ({ ack }) => ack());
-app.action("view_return", ({ ack }) => ack());
 
 // Fetch all orders summary requests.
 const getOrderResource = async (resourceType, userInput, client, say) => {
@@ -873,9 +983,6 @@ const countOrders = async (resourceType, userInput, client, say) => {
               type: "mrkdwn",
               text: `Here's the progress in *<https://dashboard.commercelayer.io/organizations/${resource.organizationSlug}/settings/information|${resource.organizationSlug}>* for today 🤭:`
             }
-          },
-          {
-            type: "divider"
           },
           {
             type: "section",

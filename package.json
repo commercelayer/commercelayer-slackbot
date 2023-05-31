@@ -4,9 +4,10 @@
   "description": "The official Commerce Layer slackbot for orders and returns summaries.",
   "main": "app.ts",
   "scripts": {
+    "dev-wizard": "npm run build && npm run start && npm run dev",
     "dev": "ngrok http 3000",
     "start": "nodemon build/app",
-    "build": "npx tsc -w",
+    "build": "npx tsc -w --skipLibCheck",
     "test": "",
     "prettier": "prettier --config .prettierrc --write .",
     "gen:sbTypes": "cd src/database && npx supabase start && npx supabase gen types typescript --local > types/supabase.types.ts"
@@ -31,12 +32,12 @@
   },
   "homepage": "https://github.com/commercelayer/commercelayer-slackbot#readme",
   "dependencies": {
-    "@commercelayer/js-auth": "^2.3.0",
+    "@commercelayer/js-auth": "^4.1.0",
     "@commercelayer/sdk": "^4.25.0",
     "@slack/bolt": "^3.12.2",
-    "@slack/oauth": "^2.6.0",
     "@supabase/supabase-js": "^2.12.1",
-    "dotenv": "^16.0.3"
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2"
   },
   "devDependencies": {
     "nodemon": "^2.0.20",
