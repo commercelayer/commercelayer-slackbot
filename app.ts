@@ -132,11 +132,21 @@ const app = new App({
         res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
         const html = `<html>
           <head>
+          <meta content="width=device-width, initial-scale=1.0" name="viewport">
+          <title>Commerce Layer Slackbot</title>
+          <link href="https://data.commercelayer.app/assets/images/favicons/favicon-32x32.png" rel="shortcut icon">
+          <link rel="preload" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" as="style">
+          <link rel="preload" href="https://data.commercelayer.app/assets/logos/glyph/black/commercelayer_glyph_black.svg" as="image" type="image/svg+xml">
           <style>
-          @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700&display=swap');
+          @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap');
+          @media only screen and (max-width: 768px) {
+            body {
+              height: 350px;
+            }
+          }
           body {
             width: 600px;
-            height: 220px;
+            height: 300px;
             position: absolute;
             left: 0;
             right: 0;
@@ -146,7 +156,7 @@ const app = new App({
             max-width: 100%;
             max-height: 100%;
             overflow: auto;
-            padding: 20px;
+            padding: 30px;
             border: 3px solid #666EFF;
             text-align: center;
             font-family: 'Manrope', sans-serif;
@@ -157,6 +167,8 @@ const app = new App({
           </style>
           </head>
           <body>
+          <img alt="Commerce Layer Logo" height="50" width="50" src="https://data.commercelayer.app/assets/logos/glyph/black/commercelayer_glyph_black.svg" />
+          <br /><br />
           <h2>Commerce Layer Slackbot 🤖</h2>
           <p>The official Commerce Layer slackbot for orders and returns summaries.</p>
           <hr />
