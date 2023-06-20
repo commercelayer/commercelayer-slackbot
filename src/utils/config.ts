@@ -2,8 +2,8 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 import CommerceLayer from "@commercelayer/sdk";
-import { authentication } from "@commercelayer/js-auth";
 import { database } from "../database/supabaseClient";
+import { getSlug } from "./parseText";
 
 const mode = process.env.APPLICATION_MODE;
 const isProd = mode === "production";
@@ -21,64 +21,28 @@ export const initConfig = async (slackId: string) => {
 
   // Variables for all required credentials.
   const organizationMode = isProd ? clUserCredentials.mode : process.env.CL_ORGANIZATION_MODE;
-  const BASE_ENDPOINT = isProd ? clUserCredentials.endpoint : process.env.CL_BASE_ENDPOINT;
-  const organizationSlug = BASE_ENDPOINT.split("https://")[1].split(".")[0];
+  const BASE_ENDPOINT =
+    mode === "production" ? clUserCredentials.endpoint : process.env.CL_ENDPOINT;
+  const organizationSlug = getSlug(BASE_ENDPOINT);
+  const clAccessToken =
+    mode === "production" ? clUserCredentials.accessToken.token : process.env.CL_ACCESS_TOKEN;
   const CLIENT_ID = isProd ? clUserCredentials.clientId : process.env.CL_CLIENT_ID;
   const CLIENT_ID_CHECKOUT = isProd
-    ? clUserCredentials.integrationClientId
+    ? clUserCredentials.checkoutClientId
     : process.env.CL_CLIENT_ID_CHECKOUT;
-  const CLIENT_SECRET = isProd ? clUserCredentials.clientSecret : process.env.CL_CLIENT_SECRET;
-  const REDIRECT_URI = process.env.CL_REDIRECT_URI;
-
-  let ACCESS_TOKEN = clUserCredentials.accessToken;
-  let REFRESH_TOKEN = clUserCredentials.refreshToken;
-  let EXPIRES = clUserCredentials.expires;
-
-  if (new Date(EXPIRES) < new Date()) {
-    console.log("Refreshing token...");
-    await authentication("refresh_token", {
-      slug: organizationSlug,
-      refreshToken: REFRESH_TOKEN,
-      clientId: CLIENT_ID
-    })
-      .then(async (token) => {
-        console.log("token", token);
-        ACCESS_TOKEN = token.accessToken;
-        REFRESH_TOKEN = token.refreshToken;
-        EXPIRES = token.expires;
-        await database
-          .from("users")
-          .update({
-            cl_app_credentials: {
-              mode: organizationMode,
-              endpoint: BASE_ENDPOINT,
-              clientId: CLIENT_ID,
-              accessToken: ACCESS_TOKEN,
-              refreshToken: REFRESH_TOKEN,
-              expires: EXPIRES
-            }
-          })
-          .eq("slack_id", slackId);
-      })
-      .catch((error) => {
-        console.error("error", error);
-      });
-  }
 
   const cl = CommerceLayer({
     organization: organizationSlug,
-    accessToken: ACCESS_TOKEN
+    accessToken: clAccessToken
   });
 
   return {
     cl,
+    ACCESS_TOKEN: clAccessToken,
     organizationMode,
-    BASE_ENDPOINT,
     organizationSlug,
+    BASE_ENDPOINT,
     CLIENT_ID,
-    REDIRECT_URI,
-    CLIENT_ID_CHECKOUT,
-    CLIENT_SECRET,
-    ACCESS_TOKEN
+    CLIENT_ID_CHECKOUT
   };
 };

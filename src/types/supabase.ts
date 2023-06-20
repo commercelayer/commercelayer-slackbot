@@ -1,14 +1,18 @@
 import { Installation } from "@slack/bolt";
 
 export type credentialsJson = {
+  accessToken: {
+    token: string;
+    createdAt: number;
+    expiresAt: Date;
+    expiresIn: number;
+    scope: string;
+    tokenType: string;
+  };
   mode: string;
   endpoint: string;
   clientId: string;
-  clientSecret: string;
-  integrationClientId: string;
-  accessToken: string;
-  refreshToken: string;
-  expires: Date;
+  checkoutClientId: string;
 };
 
 export interface Database {
@@ -31,7 +35,7 @@ export interface Database {
           updated_at?: string | null;
           is_enterprise?: boolean | null;
           slack_installation_store?: Object | null;
-          cl_app_credentials?: Object | null;
+          cl_app_credentials?: credentialsJson | null;
         };
         Update: {
           id?: number;
@@ -40,7 +44,7 @@ export interface Database {
           updated_at?: string | null;
           is_enterprise?: boolean | null;
           slack_installation_store?: Object | null;
-          cl_app_credentials?: Object | null;
+          cl_app_credentials?: credentialsJson | null;
         };
       };
     };

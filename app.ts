@@ -1,18 +1,18 @@
 import * as dotenv from "dotenv";
 dotenv.config();
 
-import { App, ExpressReceiver, LogLevel } from "@slack/bolt";
+import { App, LogLevel } from "@slack/bolt";
 import { authentication } from "@commercelayer/js-auth";
 import { getOrderById, getLastOrder, getTodaysOrder } from "./src/orders/getOrders";
 import { getReturnById, getLastReturn, getTodaysReturn } from "./src/returns/getReturns";
 import { database } from "./src/database/supabaseClient";
 import { customError } from "./src/utils/customError";
-import { toTitleCase } from "./src/utils/parseText";
+import { toTitleCase, getSlug } from "./src/utils/parseText";
 import { formatTimestamp } from "./src/utils/parseDate";
 import { initConfig } from "./src/utils/config";
-import { ConfigOptions } from "./src/types/config";
 
-const receiver = new ExpressReceiver({
+const app = new App({
+  logLevel: LogLevel.DEBUG,
   clientId: process.env.SLACK_CLIENT_ID,
   clientSecret: process.env.SLACK_CLIENT_SECRET,
   signingSecret: process.env.SLACK_SIGNING_SECRET,
@@ -125,11 +125,6 @@ const receiver = new ExpressReceiver({
   }
 });
 
-const app = new App({
-  receiver,
-  logLevel: LogLevel.DEBUG
-});
-
 let slackId: string;
 
 // Listen to the app_home_opened event (App Home Tab).
@@ -144,13 +139,6 @@ app.event("app_home_opened", async ({ client, logger, context, payload }) => {
   const adminUserId = data[0].slack_installation_store.user.id;
   const isClAuth = data[0].cl_app_credentials !== null;
 
-  let config: ConfigOptions;
-  let authLink: string;
-  if (isClAuth) {
-    config = await initConfig(slackId);
-    authLink = `https://dashboard.commercelayer.io/oauth/authorize?client_id=${config.CLIENT_ID}&redirect_uri=${config.REDIRECT_URI}&response_type=code`;
-  }
-
   try {
     await client.views.publish({
       user_id: userId,
@@ -159,6 +147,13 @@ app.event("app_home_opened", async ({ client, logger, context, payload }) => {
         blocks:
           userId === adminUserId
             ? [
+                {
+                  type: "section",
+                  text: {
+                    type: "mrkdwn",
+                    text: `*Welcome, <@${userId}> :wave:*.`
+                  }
+                },
                 {
                   type: "image",
                   image_url: "https://data.commercelayer.app/assets/images/banners/violet-half.jpg",
@@ -171,7 +166,7 @@ app.event("app_home_opened", async ({ client, logger, context, payload }) => {
                   type: "section",
                   text: {
                     type: "mrkdwn",
-                    text: `:one: *Welcome, <@${userId}> :wave:*. To get started, you need to connect your organization by providing some app credentials.`
+                    text: `To get started, you need to connect your organization by providing some app credentials.`
                   },
                   accessory: {
                     type: "button",
@@ -183,24 +178,6 @@ app.event("app_home_opened", async ({ client, logger, context, payload }) => {
                     style: "primary",
                     value: "cl_connect_org",
                     action_id: "action_cl_connect_org"
-                  }
-                },
-                {
-                  type: "section",
-                  text: {
-                    type: "mrkdwn",
-                    text: `:two: Next, click the button below to authorize the app with Commerce Layer.`
-                  },
-                  accessory: {
-                    type: "button",
-                    text: {
-                      type: "plain_text",
-                      text: "Auth with Commerce Layer",
-                      emoji: true
-                    },
-                    value: "cl_auth_org",
-                    url: authLink,
-                    action_id: "cl_auth_org"
                   }
                 }
               ]
@@ -234,15 +211,14 @@ app.action(
   async ({ ack, body, client, logger }) => {
     await ack();
 
-    const config = await initConfig(slackId);
-    const { organizationMode, BASE_ENDPOINT, CLIENT_ID, CLIENT_SECRET, CLIENT_ID_CHECKOUT } =
-      config;
     const { data, error } = await database
       .from("users")
       .select("slack_installation_store, cl_app_credentials")
       .eq("slack_id", slackId);
     if (error) throw error;
+
     const isClAuth = data[0].cl_app_credentials !== null;
+    const config = isClAuth ? await initConfig(slackId) : null;
 
     try {
       await client.views.open({
@@ -274,10 +250,10 @@ app.action(
                 initial_option: {
                   text: {
                     type: "plain_text",
-                    text: isClAuth ? toTitleCase(organizationMode) : "Test",
+                    text: isClAuth ? toTitleCase(config.organizationMode) : "Test",
                     emoji: true
                   },
-                  value: isClAuth ? organizationMode : "test"
+                  value: isClAuth ? config.organizationMode : "test"
                 },
                 options: [
                   {
@@ -305,32 +281,19 @@ app.action(
             },
             {
               type: "input",
-              block_id: "block_cl_endpoint",
-              element: {
-                type: "plain_text_input",
-                action_id: "action_cl_endpoint",
-                initial_value: isClAuth ? BASE_ENDPOINT : ""
-              },
-              label: {
-                type: "plain_text",
-                text: "Base Endpoint"
-              }
-            },
-            {
-              type: "input",
               block_id: "block_cl_client_id",
               element: {
                 type: "plain_text_input",
                 action_id: "action_cl_client_id",
-                initial_value: isClAuth ? CLIENT_ID : ""
+                initial_value: isClAuth ? config.CLIENT_ID : ""
               },
               label: {
                 type: "plain_text",
-                text: "Webapp Client ID"
+                text: "Integration Client ID"
               },
               hint: {
                 type: "plain_text",
-                text: "This is needed for API requests."
+                text: "This is needed for API requests (will not be stored)."
               }
             },
             {
@@ -339,15 +302,28 @@ app.action(
               element: {
                 type: "plain_text_input",
                 action_id: "action_cl_client_secret",
-                initial_value: isClAuth ? CLIENT_SECRET : ""
+                initial_value: ""
               },
               label: {
                 type: "plain_text",
-                text: "Webapp Client Secret"
+                text: "Integration Client Secret"
               },
               hint: {
                 type: "plain_text",
-                text: "This is needed for initial access token generation and will deleted afterwards."
+                text: "This is needed for API requests (will not be stored)."
+              }
+            },
+            {
+              type: "input",
+              block_id: "block_cl_endpoint",
+              element: {
+                type: "plain_text_input",
+                action_id: "action_cl_endpoint",
+                initial_value: isClAuth ? config.BASE_ENDPOINT : ""
+              },
+              label: {
+                type: "plain_text",
+                text: "Base Endpoint"
               }
             },
             {
@@ -355,12 +331,12 @@ app.action(
               block_id: "block_cl_int_client_id",
               element: {
                 type: "plain_text_input",
-                action_id: "action_cl_int_client_id",
-                initial_value: isClAuth ? CLIENT_ID_CHECKOUT : ""
+                action_id: "action_cl_checkout_client_id",
+                initial_value: isClAuth ? config.CLIENT_ID_CHECKOUT : ""
               },
               label: {
                 type: "plain_text",
-                text: "Integration Client ID"
+                text: "Sales channel Client ID"
               },
               hint: {
                 type: "plain_text",
@@ -382,115 +358,89 @@ app.view("callback_cl_modal_view", async ({ ack, body, view, client, logger }) =
 
   const user = body.user.id;
   const slackId = body.team.id || body.enterprise.id;
-  const formValuesObject = {
-    mode: view["state"]["values"]["block_cl_mode"]["action_cl_mode"].selected_option.value,
-    endpoint: view["state"]["values"]["block_cl_endpoint"]["action_cl_endpoint"].value,
-    clientId: view["state"]["values"]["block_cl_client_id"]["action_cl_client_id"].value,
-    clientSecret:
-      view["state"]["values"]["block_cl_client_secret"]["action_cl_client_secret"].value,
-    integrationClientId:
-      view["state"]["values"]["block_cl_int_client_id"]["action_cl_int_client_id"].value,
-    accessToken: ".",
-    refreshToken: ".",
-    expires: "."
-  };
 
-  const credentialsData = await database
-    .from("users")
-    .update({
-      cl_app_credentials: formValuesObject
-    })
-    .eq("slack_id", slackId);
+  const mode = view["state"]["values"]["block_cl_mode"]["action_cl_mode"].selected_option.value;
+  const clientId = view["state"]["values"]["block_cl_client_id"]["action_cl_client_id"].value;
+  const clientSecret =
+    view["state"]["values"]["block_cl_client_secret"]["action_cl_client_secret"].value;
+  const endpoint = view["state"]["values"]["block_cl_endpoint"]["action_cl_endpoint"].value;
+  const slug = getSlug(endpoint);
+  const checkoutClientId =
+    view["state"]["values"]["block_cl_int_client_id"]["action_cl_checkout_client_id"].value;
 
-  try {
-    await client.chat.postMessage({
-      channel: user,
-      blocks:
-        credentialsData.status === 204
-          ? [
-              {
-                type: "section",
-                text: {
-                  type: "plain_text",
-                  text: ":white_check_mark: Your organization app credentials was submitted successfully."
-                }
-              },
-              {
-                type: "image",
-                image_url: "https://media2.giphy.com/media/Gjoz5izVy7gSA/giphy.gif",
-                alt_text: "GIF of a man dancing happily"
-              }
-            ]
-          : [
-              {
-                type: "section",
-                text: {
-                  type: "plain_text",
-                  text: ":warning: There was an error with your organization app credentials submission. Please try again."
-                }
-              },
-              {
-                type: "image",
-                image_url: "https://media3.giphy.com/media/snEeOh54kCFxe/giphy.gif§§",
-                alt_text: "GIF of two sad men"
-              }
-            ]
-    });
-  } catch (error) {
-    logger.error(error);
-  }
-});
-
-// Callback endpoint for Commerce Layer Webapp authorization.
-receiver.router.get("/callback", async (req, res) => {
-  const config = await initConfig(slackId);
-  const authorizationCode = req.query.code as string;
-  const {
-    organizationMode,
-    organizationSlug,
-    BASE_ENDPOINT,
-    CLIENT_ID,
-    CLIENT_SECRET,
-    CLIENT_ID_CHECKOUT,
-    REDIRECT_URI
-  } = config;
-  console.log(config);
-  await authentication("authorization_code", {
-    clientId: CLIENT_ID,
-    clientSecret: CLIENT_SECRET,
-    slug: organizationSlug,
-    code: authorizationCode,
-    callbackUrl: REDIRECT_URI
+  await authentication("client_credentials", {
+    clientId,
+    clientSecret,
+    slug
   })
-    .then(async (token) => {
-      console.log(token);
-      await database
-        .from("users")
-        .update({
-          cl_app_credentials: {
-            mode: organizationMode,
-            endpoint: BASE_ENDPOINT,
-            clientId: CLIENT_ID,
-            integrationClientId: CLIENT_ID_CHECKOUT,
-            accessToken: token.accessToken,
-            refreshToken: token.refreshToken,
-            expires: token.expires
-          }
-        })
-        .eq("slack_id", slackId);
+    .then(async (res) => {
+      if (res.error !== "invalid_client") {
+        await database
+          .from("users")
+          .update({
+            cl_app_credentials: {
+              mode,
+              accessToken: {
+                token: res.accessToken,
+                createdAt: res.createdAt,
+                expiresAt: res.expires,
+                expiresIn: res.expiresIn,
+                scope: res.scope,
+                tokenType: res.tokenType
+              },
+              endpoint,
+              clientId,
+              checkoutClientId
+            }
+          })
+          .eq("slack_id", slackId);
 
-      res.status(200).json({
-        message: "Authorization succesful!",
-        action: "You can close this tab now.",
-        code: req.query.code
-      });
+        await client.chat.postMessage({
+          channel: user,
+          blocks: [
+            {
+              type: "section",
+              text: {
+                type: "plain_text",
+                text: ":white_check_mark: Your organization app credentials was submitted successfully."
+              }
+            },
+            {
+              type: "image",
+              image_url: "https://media2.giphy.com/media/Gjoz5izVy7gSA/giphy.gif",
+              alt_text: "GIF of a man dancing happily"
+            }
+          ]
+        });
+      } else {
+        await client.chat.postMessage({
+          channel: user,
+          blocks: [
+            {
+              type: "section",
+              text: {
+                type: "plain_text",
+                text: ":warning: There was an error with your organization app credentials submission."
+              }
+            },
+            {
+              type: "section",
+              text: {
+                type: "plain_text",
+                text: "Please check the provided values and try again."
+              }
+            },
+            {
+              type: "image",
+              image_url: "https://media3.giphy.com/media/snEeOh54kCFxe/giphy.gif",
+              alt_text: "GIF of two sad men"
+            }
+          ]
+        });
+      }
     })
-    .catch((error) => {
-      res.status(401).json({
-        message: "Oops, Something Went Wrong!",
-        action: `Please try again or contact the app owner (reason: ${error.code}))`,
-        error: error
-      });
+    .catch(async (err) => {
+      logger.error(err);
     });
 });
 
