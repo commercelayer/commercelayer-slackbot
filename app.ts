@@ -103,10 +103,11 @@ const app = new App({
           const html = `<html>
           <head>
           <style>
+          @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700&display=swap');
           body {
             padding: 10px 15px;
-            font-family: verdana;
             text-align: center;
+            font-family: 'Manrope', sans-serif;
           }
           </style>
           </head>
@@ -122,7 +123,57 @@ const app = new App({
         }
       }
     }
-  }
+  },
+  customRoutes: [
+    {
+      path: "/",
+      method: ["GET"],
+      handler: (_req, res) => {
+        res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+        const html = `<html>
+          <head>
+          <style>
+          @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700&display=swap');
+          body {
+            width: 600px;
+            height: 220px;
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            margin: auto;
+            max-width: 100%;
+            max-height: 100%;
+            overflow: auto;
+            padding: 20px;
+            border: 3px solid #666EFF;
+            text-align: center;
+            font-family: 'Manrope', sans-serif;
+          }
+          a {
+            color: #000;
+          }
+          </style>
+          </head>
+          <body>
+          <h2>Commerce Layer Slackbot 🤖</h2>
+          <p>The official Commerce Layer slackbot for orders and returns summaries.</p>
+          <hr />
+          <br />
+          <p>Kindly click the button below to install the app or read 
+            <a href="https://github.com/commercelayer/commercelayer-slackbot/blob/main/README.md" target="_blank" rel="noopener noreferrer">
+              the documentation</a>.
+          </p>
+          <a href="https://slack.com/oauth/v2/authorize?client_id=4775603903655.4775758813079&scope=channels:history,chat:write,chat:write.public,commands,groups:history,im:history,im:write,incoming-webhook,mpim:history,mpim:write,users:read&user_scope=" target="_blank" rel="noopener noreferrer">
+            <img alt="Add to Slack" height="40" width="139" src="https://platform.slack-edge.com/img/add_to_slack.png" srcSet="https://platform.slack-edge.com/img/add_to_slack.png 1x, https://platform.slack-edge.com/img/add_to_slack@2x.png 2x" />
+          </a>
+          </body>
+          </html>`;
+        res.end(html);
+      }
+    }
+  ]
 });
 
 let slackId: string;
