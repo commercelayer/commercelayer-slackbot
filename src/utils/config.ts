@@ -17,7 +17,6 @@ export const initConfig = async (slackId: string) => {
     throw error;
   }
   const clUserCredentials = data[0].cl_app_credentials;
-  console.log("clUserCredentials", clUserCredentials);
 
   // Variables for all required credentials.
   const organizationMode = isProd ? clUserCredentials.mode : process.env.CL_ORGANIZATION_MODE;
@@ -38,7 +37,6 @@ export const initConfig = async (slackId: string) => {
 
   return {
     cl,
-    ACCESS_TOKEN: clAccessToken,
     organizationMode,
     organizationSlug,
     BASE_ENDPOINT,

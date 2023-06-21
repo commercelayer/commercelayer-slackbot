@@ -199,7 +199,7 @@ const app = new App({
           <p>The official Commerce Layer slackbot for orders and returns summaries.</p>
           <hr />
           <br />
-          <p>Kindly click the button below to install the app or read 
+          <p>Kindly click the button below to install the app and read 
             <a href="https://github.com/commercelayer/commercelayer-slackbot/blob/main/README.md" target="_blank" rel="noopener noreferrer">
               the documentation</a>.
           </p>
@@ -240,7 +240,7 @@ app.event("app_home_opened", async ({ client, logger, context, payload }) => {
                   type: "section",
                   text: {
                     type: "mrkdwn",
-                    text: `*Welcome, <@${userId}> :wave:*.`
+                    text: `*Welcome, <@${userId}> :wave:*!`
                   }
                 },
                 {
@@ -268,7 +268,27 @@ app.event("app_home_opened", async ({ client, logger, context, payload }) => {
                     value: "cl_connect_org",
                     action_id: "action_cl_connect_org"
                   }
-                }
+                },
+                {
+                  type: "divider"
+                },
+                isClAuth
+                  ? {
+                      type: "section",
+                      text: {
+                        type: "mrkdwn",
+                        text: `You have now created an access token for your organization that will expire at: ${"`"}${new Date(
+                          data[0].cl_app_credentials.accessToken.expiresAt
+                        ).toLocaleString()}${"`"}. You can now use the slash commands in any channel to get orders and returns summaries 🚀.`
+                      }
+                    }
+                  : {
+                      type: "section",
+                      text: {
+                        type: "plain_text",
+                        text: " "
+                      }
+                    }
               ]
             : [
                 {
@@ -382,7 +402,7 @@ app.action(
               },
               hint: {
                 type: "plain_text",
-                text: "This is needed for API requests (will not be stored)."
+                text: "This is needed for API requests."
               }
             },
             {
@@ -404,6 +424,23 @@ app.action(
             },
             {
               type: "input",
+              block_id: "block_cl_int_client_id",
+              element: {
+                type: "plain_text_input",
+                action_id: "action_cl_checkout_client_id",
+                initial_value: isClAuth ? config.CLIENT_ID_CHECKOUT : ""
+              },
+              label: {
+                type: "plain_text",
+                text: "Sales Channel Client ID"
+              },
+              hint: {
+                type: "plain_text",
+                text: "This is needed for the hosted-checkout."
+              }
+            },
+            {
+              type: "input",
               block_id: "block_cl_endpoint",
               element: {
                 type: "plain_text_input",
@@ -413,23 +450,6 @@ app.action(
               label: {
                 type: "plain_text",
                 text: "Base Endpoint"
-              }
-            },
-            {
-              type: "input",
-              block_id: "block_cl_int_client_id",
-              element: {
-                type: "plain_text_input",
-                action_id: "action_cl_checkout_client_id",
-                initial_value: isClAuth ? config.CLIENT_ID_CHECKOUT : ""
-              },
-              label: {
-                type: "plain_text",
-                text: "Sales channel Client ID"
-              },
-              hint: {
-                type: "plain_text",
-                text: "This is needed for hosted-checkout."
               }
             }
           ]
