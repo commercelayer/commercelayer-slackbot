@@ -3,10 +3,10 @@ dotenv.config();
 
 import { App, LogLevel } from "@slack/bolt";
 import { authentication } from "@commercelayer/js-auth";
+import { database } from "./src/database/supabaseClient";
 import { getOrderById, getLastOrder, getTodaysOrder } from "./src/orders/getOrders";
 import { getReturnById, getLastReturn, getTodaysReturn } from "./src/returns/getReturns";
-import { database } from "./src/database/supabaseClient";
-import { customError } from "./src/utils/customError";
+import { renderError, notFoundError, expiredTokenError } from "./src/utils/customError";
 import { toTitleCase, getSlug } from "./src/utils/parseText";
 import { formatTimestamp } from "./src/utils/parseDate";
 import { initConfig } from "./src/utils/config";
@@ -568,7 +568,6 @@ app.event("app_uninstalled" || "tokens_revoked", async ({ logger, context }) => 
 
 // Respond with 200 OK to buttons with links.
 // Reason: all Slack buttons dispatch a request.
-app.action("cl_auth_org", ({ ack }) => ack());
 app.action("view_customer", ({ ack }) => ack());
 app.action("check_order", ({ ack }) => ack());
 app.action("view_return", ({ ack }) => ack());
@@ -604,12 +603,12 @@ app.command("/cl", async ({ command, client, ack, say }) => {
 
   if (command.text.startsWith("orders:today ")) {
     const resourceType = getTodaysOrder(command.text.replace("orders:today ", ""), config);
-    countOrders(resourceType, command, client, say);
+    getOrdersCountResource(resourceType, command, client, say);
   }
 
   if (command.text.startsWith("returns:today")) {
     const resourceType = getTodaysReturn(config);
-    countReturns(resourceType, command, client, say);
+    getReturnsCountResource(resourceType, command, client, say);
   }
 });
 
@@ -618,48 +617,31 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
   const triggerUser = await client.users.info({
     user: userInput.user_id
   });
+
   const resource = await resourceType;
 
-  if (!resource.orders) {
-    await say({
-      blocks: [
-        {
-          type: "section",
-          text: {
-            type: "mrkdwn",
-            text: `> :warning: Command ${"`"}${userInput.command} ${
-              userInput.text
-            }${"`"} failed with error: ${"```"}${JSON.stringify(
-              customError("Order"),
-              null,
-              2
-            )}${"```"}`
-          }
-        }
-      ],
-      text: customError("Order")
-    });
+  if (resource.error && resource.error === 401) {
+    const errorMessage = expiredTokenError();
+    await renderError(say, userInput, errorMessage);
+  } else if (resource.error && resource.error === 404) {
+    const errorMessage = notFoundError("Order");
+    await renderError(say, userInput, errorMessage);
   } else {
+    const clOrder = resource.orders;
     await say({
       blocks: [
         {
           type: "section",
           text: {
             type: "mrkdwn",
-            text: `:shopping_trolley: Order ${"`"}${resource.orders.id}${"`"} from the *${
-              resource.orders.market.name
-            }* market has a total amount of *${
-              resource.orders.formatted_subtotal_amount
-            }* and was ${
-              resource.orders.placed_at !== null ? "placed" : "created"
+            text: `:shopping_trolley: Order ${"`"}${clOrder.id}${"`"} from the *${
+              clOrder.market.name
+            }* market has a total amount of *${clOrder.formatted_subtotal_amount}* and was ${
+              clOrder.placed_at !== null ? "placed" : "created"
             } on <!date^${formatTimestamp(
-              resource.orders.placed_at !== null
-                ? resource.orders.placed_at
-                : resource.orders.created_at
+              clOrder.placed_at !== null ? clOrder.placed_at : clOrder.created_at
             )}^{date_long} at {time}|${
-              resource.orders.placed_at !== null
-                ? resource.orders.placed_at
-                : resource.orders.created_at
+              clOrder.placed_at !== null ? clOrder.placed_at : clOrder.created_at
             }>. Here's a quick summary of the resource:`
           }
         },
@@ -672,7 +654,7 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
             {
               type: "mrkdwn",
               text: `*Customer email:*\n${
-                resource.orders.customer !== null ? resource.orders.customer.email : "null"
+                clOrder.customer !== null ? clOrder.customer.email : "null"
               }`
             },
             {
@@ -680,8 +662,8 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
               text: `*Customer ID:*\n<https://dashboard.commercelayer.io/${
                 resource.organizationMode === "live" ? "live" : "test"
               }/${resource.organizationSlug}/resources/customers/${
-                resource.orders.customer !== null ? resource.orders.customer.id : "null"
-              }|${resource.orders.customer !== null ? resource.orders.customer.id : "null"}>`
+                clOrder.customer !== null ? clOrder.customer.id : "null"
+              }|${clOrder.customer !== null ? clOrder.customer.id : "null"}>`
             }
           ]
         },
@@ -690,11 +672,11 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
           fields: [
             {
               type: "mrkdwn",
-              text: `*Order number:*\n${"`"}${resource.orders.number}${"`"}`
+              text: `*Order number:*\n${"`"}${clOrder.number}${"`"}`
             },
             {
               type: "mrkdwn",
-              text: `*Order status:*\n${"`"}${resource.orders.status}${"`"}`
+              text: `*Order status:*\n${"`"}${clOrder.status}${"`"}`
             }
           ]
         },
@@ -703,11 +685,11 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
           fields: [
             {
               type: "mrkdwn",
-              text: `*Payment status:*\n${"`"}${resource.orders.payment_status}${"`"}`
+              text: `*Payment status:*\n${"`"}${clOrder.payment_status}${"`"}`
             },
             {
               type: "mrkdwn",
-              text: `*Fulfillment status:*\n${"`"}${resource.orders.fulfillment_status}${"`"}`
+              text: `*Fulfillment status:*\n${"`"}${clOrder.fulfillment_status}${"`"}`
             }
           ]
         },
@@ -717,20 +699,18 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
             {
               type: "mrkdwn",
               text: `*Shipping address:*\n${
-                resource.orders.shipping_address !== null
-                  ? resource.orders.shipping_address.full_name +
+                clOrder.shipping_address !== null
+                  ? clOrder.shipping_address.full_name +
                     ", " +
-                    resource.orders.shipping_address.full_address
+                    clOrder.shipping_address.full_address
                   : "null"
               }.`
             },
             {
               type: "mrkdwn",
               text: `*Billing address:*\n${
-                resource.orders.billing_address !== null
-                  ? resource.orders.billing_address.full_name +
-                    ", " +
-                    resource.orders.billing_address.full_address
+                clOrder.billing_address !== null
+                  ? clOrder.billing_address.full_name + ", " + clOrder.billing_address.full_address
                   : "null"
               }.`
             }
@@ -742,18 +722,16 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
             {
               type: "mrkdwn",
               text: `*Payment method:*\n${
-                resource.orders.payment_method !== null
-                  ? resource.orders.payment_method.name
-                  : "null"
+                clOrder.payment_method !== null ? clOrder.payment_method.name : "null"
               }`
             },
             {
               type: "mrkdwn",
               text: `*Shipment number(s):*\n${
-                resource.orders.shipments.length > 0
-                  ? resource.orders.shipments.map((shipment) => {
+                clOrder.shipments.length > 0
+                  ? clOrder.shipments.map((shipment) => {
                       // todo: remove , from last element in the array
-                      if (resource.orders.shipments.length > 1) {
+                      if (clOrder.shipments.length > 1) {
                         return `<https://dashboard.commercelayer.io/${
                           resource.organizationMode === "live" ? "live" : "test"
                         }/${resource.organizationSlug}/resources/shipments/${shipment.id}|${
@@ -775,7 +753,7 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
         {
           type: "actions",
           elements: [
-            resource.orders.status === "pending"
+            clOrder.status === "pending"
               ? {
                   type: "button",
                   text: {
@@ -785,7 +763,7 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
                   },
                   style: "primary",
                   value: "checkout_order",
-                  url: `https://${resource.organizationSlug}.checkout.commercelayer.app/${resource.orders.id}?accessToken=${resource.checkoutAccessToken}`,
+                  url: `https://${resource.organizationSlug}.checkout.commercelayer.app/${clOrder.id}?accessToken=${resource.checkoutAccessToken}`,
                   action_id: "check_order"
                 }
               : {
@@ -799,7 +777,7 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
                   value: "view_order",
                   url: `https://dashboard.commercelayer.io/${
                     resource.organizationMode === "live" ? "live" : "test"
-                  }/${resource.organizationSlug}/resources/orders/${resource.orders.id}`,
+                  }/${resource.organizationSlug}/resources/orders/${clOrder.id}`,
                   action_id: "check_order"
                 },
             {
@@ -813,7 +791,7 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
               url: `https://dashboard.commercelayer.io/${
                 resource.organizationMode === "live" ? "live" : "test"
               }/${resource.organizationSlug}/resources/customers/${
-                resource.orders.customer !== null ? resource.orders.customer.id : "null"
+                clOrder.customer !== null ? clOrder.customer.id : "null"
               }`,
               action_id: "view_customer"
             }
@@ -841,14 +819,14 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
           ]
         }
       ],
-      text: `:shopping_trolley: Order ${"`"}${resource.orders.id}${"`"} from the *${
-        resource.orders.market.name
-      }* market has a total amount of *${resource.orders.formatted_subtotal_amount}* and was ${
-        resource.orders.placed_at !== null ? "placed" : "created"
+      text: `:shopping_trolley: Order ${"`"}${clOrder.id}${"`"} from the *${
+        clOrder.market.name
+      }* market has a total amount of *${clOrder.formatted_subtotal_amount}* and was ${
+        clOrder.placed_at !== null ? "placed" : "created"
       } on <!date^${formatTimestamp(
-        resource.orders.placed_at !== null ? resource.orders.placed_at : resource.orders.created_at
+        clOrder.placed_at !== null ? clOrder.placed_at : clOrder.created_at
       )}^{date_long} at {time}|${
-        resource.orders.placed_at !== null ? resource.orders.placed_at : resource.orders.created_at
+        clOrder.placed_at !== null ? clOrder.placed_at : clOrder.created_at
       }>.`
     });
   }
@@ -859,44 +837,31 @@ const getReturnResource = async (resourceType, userInput, client, say) => {
   const triggerUser = await client.users.info({
     user: userInput.user_id
   });
+
   const resource = await resourceType;
 
-  if (!resource.returns) {
-    await say({
-      blocks: [
-        {
-          type: "section",
-          text: {
-            type: "mrkdwn",
-            text: `> :warning: Command ${"`"}${userInput.command} ${
-              userInput.text
-            }${"`"} failed with error: ${"```"}${JSON.stringify(
-              customError("Return"),
-              null,
-              2
-            )}${"```"}`
-          }
-        }
-      ],
-      text: customError("Return")
-    });
+  if (resource.error && resource.error === 401) {
+    const errorMessage = expiredTokenError();
+    await renderError(say, userInput, errorMessage);
+  } else if (resource.error && resource.error === 404) {
+    const errorMessage = notFoundError("Return");
+    await renderError(say, userInput, errorMessage);
   } else {
+    const clReturn = resource.returns;
     await say({
       blocks: [
         {
           type: "section",
           text: {
             type: "mrkdwn",
-            text: `:shopping_trolley: Return ${"`"}${resource.returns.id}${"`"} from the *${
-              resource.returns.order.country_code
-            }* market includes *${
-              resource.returns.skus_count
-            }* line items, is to be shipped to the *${
-              resource.returns.stock_location.name
+            text: `:shopping_trolley: Return ${"`"}${clReturn.id}${"`"} from the *${
+              clReturn.order.country_code
+            }* market includes *${clReturn.skus_count}* line items, is to be shipped to the *${
+              clReturn.stock_location.name
             }*, and was created on <!date^${formatTimestamp(
-              resource.returns.created_at
+              clReturn.created_at
             )}^{date_long} at {time}|${
-              resource.returns.created_at
+              clReturn.created_at
             }>. Here's a quick summary of the resource:`
           }
         },
@@ -909,7 +874,7 @@ const getReturnResource = async (resourceType, userInput, client, say) => {
             {
               type: "mrkdwn",
               text: `*Customer email:*\n${
-                resource.returns.customer !== null ? resource.returns.customer.email : "null"
+                clReturn.customer !== null ? clReturn.customer.email : "null"
               }`
             },
             {
@@ -917,8 +882,8 @@ const getReturnResource = async (resourceType, userInput, client, say) => {
               text: `*Customer ID:*\n<https://dashboard.commercelayer.io/${
                 resource.organizationMode === "live" ? "live" : "test"
               }/${resource.organizationSlug}/resources/customers${
-                resource.returns.customer !== null ? resource.returns.customer.id : "null"
-              }|${resource.returns.customer !== null ? resource.returns.customer.id : "null"}>`
+                clReturn.customer !== null ? clReturn.customer.id : "null"
+              }|${clReturn.customer !== null ? clReturn.customer.id : "null"}>`
             }
           ]
         },
@@ -927,11 +892,11 @@ const getReturnResource = async (resourceType, userInput, client, say) => {
           fields: [
             {
               type: "mrkdwn",
-              text: `*Return number:*\n${"`"}${resource.returns.number}${"`"}`
+              text: `*Return number:*\n${"`"}${clReturn.number}${"`"}`
             },
             {
               type: "mrkdwn",
-              text: `*Return status:*\n${"`"}${resource.returns.status}${"`"}`
+              text: `*Return status:*\n${"`"}${clReturn.status}${"`"}`
             }
           ]
         },
@@ -941,20 +906,18 @@ const getReturnResource = async (resourceType, userInput, client, say) => {
             {
               type: "mrkdwn",
               text: `*Origin address:*\n${
-                resource.returns.origin_address !== null
-                  ? resource.returns.origin_address.full_name +
-                    ", " +
-                    resource.returns.origin_address.full_address
+                clReturn.origin_address !== null
+                  ? clReturn.origin_address.full_name + ", " + clReturn.origin_address.full_address
                   : "null"
               }.`
             },
             {
               type: "mrkdwn",
               text: `*Destination address:*\n${
-                resource.returns.destination_address !== null
-                  ? resource.returns.destination_address.full_name +
+                clReturn.destination_address !== null
+                  ? clReturn.destination_address.full_name +
                     ", " +
-                    resource.returns.destination_address.full_address
+                    clReturn.destination_address.full_address
                   : "null"
               }.`
             }
@@ -974,7 +937,7 @@ const getReturnResource = async (resourceType, userInput, client, say) => {
               value: "view_return",
               url: `https://dashboard.commercelayer.io/${
                 resource.organizationMode === "live" ? "live" : "test"
-              }/${resource.organizationSlug}/resources/returns/${resource.returns.id}`,
+              }/${resource.organizationSlug}/resources/returns/${clReturn.id}`,
               action_id: "view_return"
             },
             {
@@ -988,7 +951,7 @@ const getReturnResource = async (resourceType, userInput, client, say) => {
               url: `https://dashboard.commercelayer.io/${
                 resource.organizationMode === "live" ? "live" : "test"
               }/${resource.organizationSlug}/resources/customers/${
-                resource.returns.customer !== null ? resource.returns.customer.id : "null"
+                clReturn.customer !== null ? clReturn.customer.id : "null"
               }`,
               action_id: "view_customer"
             }
@@ -1016,164 +979,142 @@ const getReturnResource = async (resourceType, userInput, client, say) => {
           ]
         }
       ],
-      text: `:shopping_trolley: Return ${"`"}${resource.returns.id}${"`"} from the *${
-        resource.returns.order.country_code
-      }* market includes *${resource.returns.skus_count}* line items, is to be shipped to the *${
-        resource.returns.stock_location.name
-      }*, and was created on <!date^${formatTimestamp(
-        resource.returns.created_at
-      )}^{date_long} at {time}|${resource.returns.created_at}>.`
+      text: `:shopping_trolley: Return ${"`"}${clReturn.id}${"`"} from the *${
+        clReturn.order.country_code
+      }* market includes *${clReturn.skus_count}* line items, is to be shipped to the *${
+        clReturn.stock_location.name
+      }*, and was created on <!date^${formatTimestamp(clReturn.created_at)}^{date_long} at {time}|${
+        clReturn.created_at
+      }>.`
     });
   }
 };
 
 // Fetch all orders count requests.
-const countOrders = async (resourceType, userInput, client, say) => {
+const getOrdersCountResource = async (resourceType, userInput, client, say) => {
   const triggerUser = await client.users.info({
     user: userInput.user_id
   });
-  await resourceType
-    .then(async (resource) => {
-      await say({
-        blocks: [
-          {
-            type: "section",
-            text: {
-              type: "mrkdwn",
-              text: `Here's the progress in *<https://dashboard.commercelayer.io/organizations/${resource.organizationSlug}/settings/information|${resource.organizationSlug}>* for today 🤭:`
-            }
-          },
-          {
-            type: "section",
-            text: {
-              type: "mrkdwn",
-              text: `*Total number of placed orders (all markets):*\n${resource.allOrdersCount}`
-            }
-          },
-          {
-            type: "section",
-            text: {
-              type: "mrkdwn",
-              text: `*Total number of placed orders (${resource.currencyName}):*\n${resource.allOrdersByMarketCount}`
-            }
-          },
-          {
-            type: "section",
-            text: {
-              type: "mrkdwn",
-              text: `*Total revenue:*\n${resource.revenueCount}`
-            }
-          },
-          {
-            type: "context",
-            elements: [
-              {
-                type: "image",
-                image_url: `${triggerUser.user.profile.image_72}`,
-                alt_text: `${
-                  triggerUser.user.profile.display_name || triggerUser.user.profile.real_name
-                }'s avatar`
-              },
-              {
-                type: "mrkdwn",
-                text: `${
-                  triggerUser.user.profile.display_name || triggerUser.user.profile.real_name
-                } has triggered this request.`
-              }
-            ]
+
+  const resource = await resourceType;
+
+  if (resource.error && resource.error === 401) {
+    const errorMessage = expiredTokenError();
+    await renderError(say, userInput, errorMessage);
+  } else {
+    await say({
+      blocks: [
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `Here's the progress in *<https://dashboard.commercelayer.io/organizations/${resource.organizationSlug}/settings/information|${resource.organizationSlug}>* for today 🤭:`
           }
-        ],
-        text: `Here's the progress in *<https://dashboard.commercelayer.io/organizations/${resource.organizationSlug}/settings/information|${resource.organizationSlug}>* for today 🤭:\n *Total number of placed orders (all markets):*\n${resource.recordCount} \n *Total number of placed orders (${resource.currencyName}):*\n${resource.allOrdersByMarketCount} \n *Total revenue:*\n${resource.recordCount}`
-      });
-    })
-    .catch(async (error) => {
-      await say({
-        blocks: [
-          {
-            type: "section",
-            text: {
-              type: "mrkdwn",
-              text: `> :warning: Command ${"`"}${userInput.command} ${
-                userInput.text
-              }${"`"} failed with error: ${"```"}${JSON.stringify(error, null, 2)}${"```"}`
-            }
+        },
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `*Total number of placed orders (all markets):*\n${resource.allOrdersCount}`
           }
-        ],
-        text: error
-      });
+        },
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `*Total number of placed orders (${resource.currencyName}):*\n${resource.allOrdersByMarketCount}`
+          }
+        },
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `*Total revenue:*\n${resource.revenueCount}`
+          }
+        },
+        {
+          type: "context",
+          elements: [
+            {
+              type: "image",
+              image_url: `${triggerUser.user.profile.image_72}`,
+              alt_text: `${
+                triggerUser.user.profile.display_name || triggerUser.user.profile.real_name
+              }'s avatar`
+            },
+            {
+              type: "mrkdwn",
+              text: `${
+                triggerUser.user.profile.display_name || triggerUser.user.profile.real_name
+              } has triggered this request.`
+            }
+          ]
+        }
+      ],
+      text: `Here's the progress in *<https://dashboard.commercelayer.io/organizations/${resource.organizationSlug}/settings/information|${resource.organizationSlug}>* for today 🤭:\n *Total number of placed orders (all markets):*\n${resource.recordCount} \n *Total number of placed orders (${resource.currencyName}):*\n${resource.allOrdersByMarketCount} \n *Total revenue:*\n${resource.recordCount}`
     });
+  }
 };
 
 // Fetch all returns count requests.
-const countReturns = async (resourceType, userInput, client, say) => {
+const getReturnsCountResource = async (resourceType, userInput, client, say) => {
   const triggerUser = await client.users.info({
     user: userInput.user_id
   });
-  await resourceType
-    .then(async (resource) => {
-      await say({
-        blocks: [
-          {
-            type: "section",
-            text: {
-              type: "mrkdwn",
-              text: `Here's the progress in *<https://dashboard.commercelayer.io/organizations/${resource.organizationSlug}/settings/information|${resource.organizationSlug}>* for today 🤭:`
-            }
-          },
-          {
-            type: "divider"
-          },
-          {
-            type: "section",
-            fields: [
-              {
-                type: "mrkdwn",
-                text: `*Total number of requested returns:*\n${resource.recordCount}`
-              }
-            ]
-          },
-          {
-            type: "context",
-            elements: [
-              {
-                type: "image",
-                image_url: `${triggerUser.user.profile.image_72}`,
-                alt_text: `${
-                  triggerUser.user.profile.display_name || triggerUser.user.profile.real_name
-                }'s avatar`
-              },
-              {
-                type: "mrkdwn",
-                text: `${
-                  triggerUser.user.profile.display_name || triggerUser.user.profile.real_name
-                } has triggered this request.`
-              }
-            ]
+
+  const resource = await resourceType;
+
+  if (resource.error && resource.error === 401) {
+    const errorMessage = expiredTokenError();
+    await renderError(say, userInput, errorMessage);
+  } else {
+    await say({
+      blocks: [
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `Here's the progress in *<https://dashboard.commercelayer.io/organizations/${resource.organizationSlug}/settings/information|${resource.organizationSlug}>* for today 🤭:`
           }
-        ],
-        text: `Here's the progress in *<https://dashboard.commercelayer.io/organizations/${resource.organizationSlug}/settings/information|${resource.organizationSlug}>* for today 🤭:\n *Total number of requested returns:*\n${resource.recordCount}`
-      });
-    })
-    .catch(async (error) => {
-      await say({
-        blocks: [
-          {
-            type: "section",
-            text: {
+        },
+        {
+          type: "divider"
+        },
+        {
+          type: "section",
+          fields: [
+            {
               type: "mrkdwn",
-              text: `> :warning: Command ${"`"}${userInput.command} ${
-                userInput.text
-              }${"`"} failed with error: ${"```"}${JSON.stringify(error, null, 2)}${"```"}`
+              text: `*Total number of requested returns:*\n${resource.recordCount}`
             }
-          }
-        ],
-        text: error
-      });
+          ]
+        },
+        {
+          type: "context",
+          elements: [
+            {
+              type: "image",
+              image_url: `${triggerUser.user.profile.image_72}`,
+              alt_text: `${
+                triggerUser.user.profile.display_name || triggerUser.user.profile.real_name
+              }'s avatar`
+            },
+            {
+              type: "mrkdwn",
+              text: `${
+                triggerUser.user.profile.display_name || triggerUser.user.profile.real_name
+              } has triggered this request.`
+            }
+          ]
+        }
+      ],
+      text: `Here's the progress in *<https://dashboard.commercelayer.io/organizations/${resource.organizationSlug}/settings/information|${resource.organizationSlug}>* for today 🤭:\n *Total number of requested returns:*\n${resource.recordCount}`
     });
+  }
 };
 
 (async () => {
   await app.start(process.env.PORT || 3000);
 
-  console.log("⚡️ Bolt app is running!");
+  console.log("\x1b[93m ⚡️ Bolt app is running! \x1b[0m");
 })();
