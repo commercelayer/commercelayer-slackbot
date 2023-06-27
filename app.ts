@@ -330,7 +330,7 @@ app.action(
               element: {
                 type: "plain_text_input",
                 action_id: "action_cl_client_id",
-                initial_value: isClAuth ? config.CLIENT_ID : ""
+                initial_value: isClAuth ? config.clientIdApp : ""
               },
               label: {
                 type: "plain_text",
@@ -364,7 +364,7 @@ app.action(
               element: {
                 type: "plain_text_input",
                 action_id: "action_cl_checkout_client_id",
-                initial_value: isClAuth ? config.CLIENT_ID_CHECKOUT : ""
+                initial_value: isClAuth ? config.clientIdCheckout : ""
               },
               label: {
                 type: "plain_text",
@@ -381,7 +381,7 @@ app.action(
               element: {
                 type: "plain_text_input",
                 action_id: "action_cl_endpoint",
-                initial_value: isClAuth ? config.BASE_ENDPOINT : ""
+                initial_value: isClAuth ? config.baseEndpoint : ""
               },
               label: {
                 type: "plain_text",
@@ -405,16 +405,16 @@ app.view("callback_cl_modal_view", async ({ ack, body, view, client, logger }) =
   const slackId = body.team.id || body.enterprise.id;
 
   const mode = view["state"]["values"]["block_cl_mode"]["action_cl_mode"].selected_option.value;
-  const clientId = view["state"]["values"]["block_cl_client_id"]["action_cl_client_id"].value;
+  const clientIdApp = view["state"]["values"]["block_cl_client_id"]["action_cl_client_id"].value;
   const clientSecret =
     view["state"]["values"]["block_cl_client_secret"]["action_cl_client_secret"].value;
   const endpoint = view["state"]["values"]["block_cl_endpoint"]["action_cl_endpoint"].value;
   const slug = getSlug(endpoint);
-  const checkoutClientId =
+  const clientIdCheckout =
     view["state"]["values"]["block_cl_int_client_id"]["action_cl_checkout_client_id"].value;
 
   await authentication("client_credentials", {
-    clientId,
+    clientId: clientIdApp,
     clientSecret,
     slug
   })
@@ -434,8 +434,8 @@ app.view("callback_cl_modal_view", async ({ ack, body, view, client, logger }) =
                 tokenType: res.tokenType
               },
               endpoint,
-              clientId,
-              checkoutClientId
+              clientIdApp,
+              clientIdCheckout
             }
           })
           .eq("slack_id", slackId);

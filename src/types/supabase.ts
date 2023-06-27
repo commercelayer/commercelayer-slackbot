@@ -11,8 +11,8 @@ export type credentialsJson = {
   };
   mode: string;
   endpoint: string;
-  clientId: string;
-  checkoutClientId: string;
+  clientIdApp: string;
+  clientIdCheckout: string;
 };
 
 export interface Database {
