@@ -699,7 +699,7 @@ const getOrderResource = async (resourceType, userInput, client, say) => {
                   },
                   style: "primary",
                   value: "checkout_order",
-                  url: `https://${resource.organizationSlug}.checkout.commercelayer.app/${clOrder.id}?accessToken=${resource.checkoutAccessToken}`,
+                  url: `https://${resource.organizationSlug}.commercelayer.app/checkout/${clOrder.id}?accessToken=${resource.checkoutAccessToken}`,
                   action_id: "check_order"
                 }
               : {
