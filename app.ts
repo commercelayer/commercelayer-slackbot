@@ -7,6 +7,7 @@ import { database } from "./src/database/supabaseClient";
 import { getOrderById, getLastOrder, getTodaysOrder } from "./src/orders/getOrders";
 import { getReturnById, getLastReturn, getTodaysReturn } from "./src/returns/getReturns";
 import { serveHtml } from "./src/utils/serveHtml";
+import { getTokenInfo } from "./src/utils/getToken";
 import { renderError, notFoundError, expiredTokenError } from "./src/utils/customError";
 import { toTitleCase, getSlug } from "./src/utils/parseText";
 import { formatTimestamp } from "./src/utils/parseDate";
@@ -288,44 +289,6 @@ app.action(
           blocks: [
             {
               type: "input",
-              block_id: "block_cl_mode",
-              element: {
-                type: "static_select",
-                action_id: "action_cl_mode",
-                initial_option: {
-                  text: {
-                    type: "plain_text",
-                    text: isClAuth ? toTitleCase(config.organizationMode) : "Test",
-                    emoji: true
-                  },
-                  value: isClAuth ? config.organizationMode : "test"
-                },
-                options: [
-                  {
-                    text: {
-                      type: "plain_text",
-                      text: "Test",
-                      emoji: true
-                    },
-                    value: "test"
-                  },
-                  {
-                    text: {
-                      type: "plain_text",
-                      text: "Live",
-                      emoji: true
-                    },
-                    value: "live"
-                  }
-                ]
-              },
-              label: {
-                type: "plain_text",
-                text: "Organization Mode"
-              }
-            },
-            {
-              type: "input",
               block_id: "block_cl_client_id",
               element: {
                 type: "plain_text_input",
@@ -404,7 +367,6 @@ app.view("callback_cl_modal_view", async ({ ack, body, view, client, logger }) =
   const user = body.user.id;
   const slackId = body.team.id || body.enterprise.id;
 
-  const mode = view["state"]["values"]["block_cl_mode"]["action_cl_mode"].selected_option.value;
   const clientIdApp = view["state"]["values"]["block_cl_client_id"]["action_cl_client_id"].value;
   const clientSecret =
     view["state"]["values"]["block_cl_client_secret"]["action_cl_client_secret"].value;
@@ -419,12 +381,17 @@ app.view("callback_cl_modal_view", async ({ ack, body, view, client, logger }) =
     slug
   })
     .then(async (res) => {
+      const tokenInfo = await getTokenInfo(res.accessToken);
+      const organizationMode = tokenInfo.isTest ? "test" : "live";
       if (res.error !== "invalid_client") {
         await database
           .from("users")
           .update({
             cl_app_credentials: {
-              mode,
+              mode: organizationMode,
+              endpoint,
+              clientIdApp,
+              clientIdCheckout,
               accessToken: {
                 token: res.accessToken,
                 createdAt: res.createdAt,
@@ -432,10 +399,7 @@ app.view("callback_cl_modal_view", async ({ ack, body, view, client, logger }) =
                 expiresIn: res.expiresIn,
                 scope: res.scope,
                 tokenType: res.tokenType
-              },
-              endpoint,
-              clientIdApp,
-              clientIdCheckout
+              }
             }
           })
           .eq("slack_id", slackId);

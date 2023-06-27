@@ -1,6 +1,10 @@
 import { Installation } from "@slack/bolt";
 
 export type credentialsJson = {
+  mode: string;
+  endpoint: string;
+  clientIdApp: string;
+  clientIdCheckout: string;
   accessToken: {
     token: string;
     createdAt: number;
@@ -9,10 +13,6 @@ export type credentialsJson = {
     scope: string;
     tokenType: string;
   };
-  mode: string;
-  endpoint: string;
-  clientIdApp: string;
-  clientIdCheckout: string;
 };
 
 export interface Database {

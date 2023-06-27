@@ -35,7 +35,8 @@
     "@commercelayer/sdk": "^4.25.0",
     "@slack/bolt": "^3.13.1",
     "@supabase/supabase-js": "^2.12.1",
-    "dotenv": "^16.0.3"
+    "dotenv": "^16.0.3",
+    "jwt-decode": "^3.1.2"
   },
   "devDependencies": {
     "nodemon": "^2.0.20",
