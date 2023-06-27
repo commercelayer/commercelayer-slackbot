@@ -6,6 +6,7 @@ import { authentication } from "@commercelayer/js-auth";
 import { database } from "./src/database/supabaseClient";
 import { getOrderById, getLastOrder, getTodaysOrder } from "./src/orders/getOrders";
 import { getReturnById, getLastReturn, getTodaysReturn } from "./src/returns/getReturns";
+import { serveHtml } from "./src/utils/serveHtml";
 import { renderError, notFoundError, expiredTokenError } from "./src/utils/customError";
 import { toTitleCase, getSlug } from "./src/utils/parseText";
 import { formatTimestamp } from "./src/utils/parseDate";
@@ -100,25 +101,19 @@ const app = new App({
       failure: (error, _installation, _req, res) => {
         if (error.code === "23505") {
           res.writeHead(400, { "Content-Type": "text/html; charset=utf-8" });
-          const html = `<html>
-          <head>
-          <style>
-          @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700&display=swap');
-          body {
-            padding: 10px 15px;
-            text-align: center;
-            font-family: 'Manrope', sans-serif;
-          }
-          </style>
-          </head>
-          <body>
-          <h2>Oops, Something Went Wrong!</h2>
-          <p>Commerce Layer Bot 🤖 is already installed in this Slack workspace.</p>
-          <p>You can go ahead and start using the existing installation.</p>
-          <br />
-          <p>Please try again or contact the app owner (reason: ${error.code})</p>
-          </body>
-          </html>`;
+          const pageBody = `
+          <div>
+            <h2>Oops, Something Went Wrong!</h2>
+            <p>Commerce Layer Bot 🤖 is already installed in this Slack workspace.</p>
+            <p>You can go ahead and start using the existing installation.</p>
+            <br />
+            <hr />
+            <br />
+            <p>Please try again or contact the app owner (reason: ${error.code}).</p>
+          </div>
+          `;
+
+          const html = serveHtml(pageBody);
           res.end(html);
         }
       }
@@ -130,69 +125,8 @@ const app = new App({
       method: ["GET"],
       handler: (_req, res) => {
         res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-        const title = "Commerce Layer Slackbot";
-        const description =
-          "The official Commerce Layer slackbot for orders and returns summaries.";
-        const url = "";
-        const keywords =
-          "Commerce Layer, Commerce Layer API, Commerce Layer Slackbot, Slackbot, Slack API, Slack Bolt, Ecommerce Slackbot, Ecommerce API";
-        const twitterHandle = "@commercelayer";
-        const ogImage =
-          "https://raw.githubusercontent.com/commercelayer/commercelayer-slackbot/main/static/app-details.png";
-
-        const html = `<html>
-          <head>
-          <meta charSet="UTF-8" />
-          <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
-          <meta content="width=device-width, initial-scale=1.0" name="viewport">
-          <title>${title}</title>
-          <meta name="description" content="${description}" />
-          <meta name="keywords" content="${keywords}" />
-          <meta property="og:url" content="${url}" />
-          <meta property="og:title" content="${title}" />
-          <meta property="og:description" content="${description}" />
-          <meta name="twitter:card" content="summary_large_image" />
-          <meta name="twitter:creator" content="${twitterHandle}" />
-          <meta name="twitter:site" content="${twitterHandle}" />
-          <meta name="twitter:image" content="${ogImage}" />
-          <meta name="twitter:image:alt" content="${title}" />
-          <meta name="twitter:description" content="${description}" />
-          <meta property="og:image" content="${ogImage}" />
-          <meta property="og:image:width" content="900" />
-          <meta property="og:image:height" content="600" />
-          <link href="https://data.commercelayer.app/assets/images/favicons/favicon-32x32.png" rel="shortcut icon">
-          <link rel="preload" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" as="style">
-          <link rel="preload" href="https://data.commercelayer.app/assets/logos/glyph/black/commercelayer_glyph_black.svg" as="image" type="image/svg+xml">
-          <style>
-          @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap');
-          @media only screen and (max-width: 768px) {
-            body {
-              height: 350px;
-            }
-          }
-          body {
-            width: 600px;
-            height: 300px;
-            position: absolute;
-            left: 0;
-            right: 0;
-            top: 0;
-            bottom: 0;
-            margin: auto;
-            max-width: 100%;
-            max-height: 100%;
-            overflow: auto;
-            padding: 30px;
-            border: 3px solid #666EFF;
-            text-align: center;
-            font-family: 'Manrope', sans-serif;
-          }
-          a {
-            color: #000;
-          }
-          </style>
-          </head>
-          <body>
+        const pageBody = `
+        <div>
           <img alt="Commerce Layer Logo" height="50" width="50" src="https://data.commercelayer.app/assets/logos/glyph/black/commercelayer_glyph_black.svg" />
           <br /><br />
           <h2>Commerce Layer Slackbot 🤖</h2>
@@ -203,11 +137,13 @@ const app = new App({
             <a href="https://github.com/commercelayer/commercelayer-slackbot/blob/main/README.md" target="_blank" rel="noopener noreferrer">
               the documentation</a>.
           </p>
-          <a href="https://slack.com/oauth/v2/authorize?client_id=4775603903655.4775758813079&scope=channels:history,chat:write,chat:write.public,commands,groups:history,im:history,im:write,incoming-webhook,mpim:history,mpim:write,users:read&user_scope=" target="_blank" rel="noopener noreferrer">
+          <a href="/slack/install" target="_blank" rel="noopener noreferrer">
             <img alt="Add to Slack" height="40" width="139" src="https://platform.slack-edge.com/img/add_to_slack.png" srcSet="https://platform.slack-edge.com/img/add_to_slack.png 1x, https://platform.slack-edge.com/img/add_to_slack@2x.png 2x" />
           </a>
-          </body>
-          </html>`;
+        </div>
+          `;
+
+        const html = serveHtml(pageBody);
         res.end(html);
       }
     }
