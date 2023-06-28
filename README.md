@@ -166,7 +166,7 @@ npm run dev
 
 <br />
 
-Now you can procced to do your thing!
+Now you can proceed to do your thing!
 
 ## Contributors Guide
 
@@ -196,4 +196,4 @@ This repository is published under the [MIT](LICENSE) license.
 
 ---
 
-Want to learn more about how we built this project and how you can build yours? Then you should read [this article first](https://commercelayer.io/blog/how-we-built-the-commerce-layer-slackbot-with-node-js-and-slack-api) and [this next]() on our blog.
+Want to learn more about how we built this project and how you can build yours? Then you should read [this article first](https://commercelayer.io/blog/how-we-built-the-commerce-layer-slackbot-with-node-js-and-slack-api) and [this next](#) on our blog.

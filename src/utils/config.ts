@@ -2,10 +2,12 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 import CommerceLayer from "@commercelayer/sdk";
-import { getIntegrationToken } from "@commercelayer/js-auth";
 import { database } from "../database/supabaseClient";
+import { getToken } from "./getToken";
+import { getSlug } from "./parseText";
 
-const mode = process.env.APPLICATION_MODE;
+const appMode = process.env.APPLICATION_MODE;
+const isProd = appMode === "production";
 
 export const initConfig = async (slackId: string) => {
   const { data, error } = await database
@@ -15,42 +17,29 @@ export const initConfig = async (slackId: string) => {
   if (error) {
     throw error;
   }
-  const slackUserCredentials = data[0].cl_app_credentials;
+  const clUserCredentials = data[0].cl_app_credentials;
 
-  const BASE_ENDPOINT = `https://${
-    mode === "production" ? slackUserCredentials.slug : process.env.CL_ORGANIZATION_SLUG
-  }.commercelayer.io`;
-  const CLIENT_ID =
-    mode === "production" ? slackUserCredentials.salesClientId : process.env.CL_CLIENT_ID;
-  const CLIENT_ID_CHECKOUT =
-    mode === "production"
-      ? slackUserCredentials.integrationClientId
-      : process.env.CL_CLIENT_ID_CHECKOUT;
-  const CLIENT_SECRET =
-    mode === "production" ? slackUserCredentials.salesClientSecret : process.env.CL_CLIENT_SECRET;
-  const organizationSlug =
-    mode === "production" ? slackUserCredentials.slug : process.env.CL_ORGANIZATION_SLUG;
-  const organizationMode =
-    mode === "production" ? slackUserCredentials.mode : process.env.CL_ORGANIZATION_MODE;
-
-  const { accessToken: token } = await getIntegrationToken({
-    endpoint: BASE_ENDPOINT,
-    clientId: CLIENT_ID,
-    clientSecret: CLIENT_SECRET
-  });
+  // Variables for all required credentials.
+  const baseEndpoint = isProd ? clUserCredentials.endpoint : process.env.CL_ENDPOINT;
+  const organizationMode = isProd ? clUserCredentials.mode : process.env.CL_ORGANIZATION_MODE;
+  const organizationSlug = getSlug(baseEndpoint);
+  const clientIdApp = isProd ? clUserCredentials.clientIdApp : process.env.CL_CLIENT_ID;
+  const clientIdCheckout = isProd
+    ? clUserCredentials.clientIdCheckout
+    : process.env.CL_CLIENT_ID_CHECKOUT;
+  const clAccessToken = isProd ? clUserCredentials.accessToken.token : await getToken();
 
   const cl = CommerceLayer({
     organization: organizationSlug,
-    accessToken: token
+    accessToken: clAccessToken
   });
 
   return {
     cl,
-    BASE_ENDPOINT,
-    CLIENT_ID,
-    CLIENT_ID_CHECKOUT,
-    CLIENT_SECRET,
+    organizationMode,
     organizationSlug,
-    organizationMode
+    baseEndpoint,
+    clientIdApp,
+    clientIdCheckout
   };
 };
